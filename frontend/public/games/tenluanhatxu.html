@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Space Coin Hunter - Expanded Universe</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.2/p5.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: #000;
+      font-family: Arial, sans-serif;
+    }
+    #ui {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      color: white;
+      font-size: 20px;
+      z-index: 100;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+    }
+    #instructions {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      color: white;
+      font-size: 14px;
+      z-index: 100;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+    }
+    #phase-indicator {
+      position: absolute;
+      top: 60px;
+      left: 10px;
+      color: #ffff00;
+      font-size: 18px;
+      z-index: 100;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+    }
+  </style>
+</head>
+<body>
+  <div id="ui">
+    <div>Đồng xu: <span id="score">0</span>/30</div>
+    <div>Sao băng: <span id="meteors">0</span></div>
+    <div>Năng lượng: <span id="energy">100</span>%</div>
+  </div>
+  <div id="phase-indicator">
+    <div id="phase-text">Giai đoạn 1: Thu thập xu 1-10</div>
+  </div>
+  <div id="instructions">
+    <div>Điều khiển: ← → ↑ ↓</div>
+    <div>Space: Tấn công (GĐ3)</div>
+    <div>Tìm 30 đồng xu trong vũ trụ!</div>
+  </div>
+
+  <script>
+  let player;
+  let coins = [];
+  let stars = [];
+  let meteors = [];
+  let blackholes = [];
+  let lasers = [];
+  let worldWidth = 1500;
+  let worldHeight = 1500;
+  let score = 0;
+  let meteorCount = 0;
+  let gameComplete = false;
+  let expectedCoinNumber = 1;
+  let gameOver = false;
+  let currentPhase = 1;
+  let cameraZoom = 1;
+  let targetZoom = 1;
+  let astronautImg;
+  let laserSound;
+  let coinSound;
+  let energy = 100;
+  let lastEnergyUpdate = 0;
+  let lastBlackholeSpawn = 0;
+  let blackholeCount = 0;
+
+  let expandedWorld = false;
+  let finalPhase = false;
+
+  function preload() {
+    astronautImg = loadImage('phihanhgia.png');
+    // Thêm âm thanh nếu có
+    // laserSound = loadSound('laser.wav');
+    // coinSound = loadSound('coin.wav');
+  }
+
+  function setup() {
+    createCanvas(windowWidth, windowHeight);
+    resetGame();
+  }
+
+  function resetGame() {
+    score = 0;
+    meteorCount = 0;
+    gameComplete = false;
+    expectedCoinNumber = 1;
+    gameOver = false;
+    currentPhase = 1;
+    cameraZoom = 1;
+    targetZoom = 1;
+    expandedWorld = false;
+    finalPhase = false;
+    worldWidth = 1500;
+    worldHeight = 1500;
+    energy = 100;
+    blackholeCount = 0;
+
+    player = {
+      x: worldWidth / 2,
+      y: worldHeight / 2,
+      size: 120,
+      vx: 0,
+      vy: 0,
+      thrust: 0.3,
+      drag: 0.95,
+      trail: [],
+      lastShot: 0,
+      invincible: false
+    };
+
+    coins = [];
+    // Tạo 10 đồng xu đầu tiên
+    for (let i = 1; i <= 10; i++) {
+      coins.push({
+        x: random(100, worldWidth - 100),
+        y: random(100, worldHeight - 100),
+        size: 60,
+        collected: false,
+        number: i,
+        glow: 0,
+        rotation: 0,
+        phase: 1,
+        shouldRotate: ![6, 9].includes(i) // Chỉ quay nếu không phải số 6 hoặc 9
+      });
+    }
+
+    stars = [];
+    generateStars();
+
+    meteors = [];
+    blackholes = [];
+    lasers = [];
+  }
+
+  function generateStars() {
+    stars = [];
+    let starCount = expandedWorld ? (finalPhase ? 500 : 300) : 100;
+    for (let i = 0; i < starCount; i++) {
+      stars.push({
+        x: random(worldWidth),
+        y: random(worldHeight),
+        size: random(1, 4),
+        brightness: random(100, 255),
+        twinkle: random(0.01, 0.05)
+      });
+    }
+  }
+
+  function expandUniverse() {
+    // Mở rộng thế giới
+    worldWidth = 3000;
+    worldHeight = 3000;
+    expandedWorld = true;
+    
+    // Thu nhỏ camera để nhìn rộng hơn
+    targetZoom = 0.5;
+    
+    // Tạo thêm sao
+    generateStars();
+    
+    // Tạo 10 đồng xu tiếp theo (11-20)
+    for (let i = 11; i <= 20; i++) {
+      coins.push({
+        x: random(100, worldWidth - 100),
+        y: random(100, worldHeight - 100),
+        size: 100,
+        collected: false,
+        number: i,
+        glow: 0,
+        rotation: 0,
+        phase: 2,
+        shouldRotate: ![6, 9, 16, 19].includes(i) // Chỉ quay nếu không phải số 6,9,16,19
+      });
+    }
+    
+    currentPhase = 2;
+  }
+
+  function activateFinalPhase() {
+    // Kích hoạt giai đoạn cuối
+    worldWidth = 5000;
+    worldHeight = 5000;
+    finalPhase = true;
+    targetZoom = 0.3;
+    
+    // Tạo thêm sao
+    generateStars();
+    
+    // Tạo 10 đồng xu cuối cùng (21-30)
+    for (let i = 21; i <= 30; i++) {
+      coins.push({
+        x: random(100, worldWidth - 100),
+        y: random(100, worldHeight - 100),
+        size: 120,
+        collected: false,
+        number: i,
+        glow: 0,
+        rotation: 0,
+        phase: 3,
+        shouldRotate: ![6, 9, 16, 19, 26, 29].includes(i), // Chỉ quay nếu không phải số 6,9,16,19,26,29
+        isSpecial: [21, 23, 28, 30].includes(i) // Đánh dấu các đồng xu đặc biệt
+      });
+    }
+    
+    currentPhase = 3;
+    player.invincible = false;
+    player.size = 100; // Nhân vật nhỏ hơn để né dễ hơn
+    
+    // Tạo lỗ đen đầu tiên
+    createBlackhole();
+    lastBlackholeSpawn = millis();
+  }
+
+  function createBlackhole() {
+    // Tạo lỗ đen ở vị trí ngẫu nhiên xa người chơi
+    let x, y;
+    let safeDistance = 800;
+    
+    do {
+      x = random(100, worldWidth - 100);
+      y = random(100, worldHeight - 100);
+    } while (dist(x, y, player.x, player.y) < safeDistance);
+    
+    blackholes.push({
+      x: x,
+      y: y,
+      size: 150,
+      pullRadius: 400,
+      rotation: 0,
+      life: 10000, // 10 giây
+      spawnTime: millis()
+    });
+    
+    blackholeCount++;
+  }
+
+  function draw() {
+    // Gradient background
+    for (let i = 0; i <= height; i++) {
+      let inter = map(i, 0, height, 0, 1);
+      let c = lerpColor(color(10, 10, 30), color(5, 5, 15), inter);
+      stroke(c);
+      line(0, i, width, i);
+    }
+
+    // Smooth camera zoom transition
+    cameraZoom = lerp(cameraZoom, targetZoom, 0.02);
+
+    push();
+    // Apply camera zoom
+    scale(cameraZoom);
+    translate((width/cameraZoom) / 2 - player.x, (height/cameraZoom) / 2 - player.y);
+
+    if (!expandedWorld) {
+      drawWorldBorder();
+    }
+    drawStars();
+    updateMeteors();
+    drawMeteors();
+    updateBlackholes();
+    drawBlackholes();
+    updateLasers();
+    drawLasers();
+    drawCoins();
+    drawPlayer();
+    pop();
+
+    if (!gameOver && !gameComplete) {
+      updatePlayer();
+      if (random() < 0.003) {
+        createMeteor();
+      }
+      
+      // Tạo lỗ đen mới mỗi 15 giây trong giai đoạn 3
+      if (currentPhase === 3 && millis() - lastBlackholeSpawn > 15000 && blackholes.length < 3) {
+        createBlackhole();
+        lastBlackholeSpawn = millis();
+      }
+      
+      // Hồi phục năng lượng
+      if (millis() - lastEnergyUpdate > 1000 && energy < 100) {
+        energy += 5;
+        energy = constrain(energy, 0, 100);
+        lastEnergyUpdate = millis();
+      }
+    }
+
+    updateUI();
+
+    // Kiểm tra hoàn thành giai đoạn 1
+    if (score >= 10 && currentPhase === 1) {
+      expandUniverse();
+      showPhaseMessage("Vũ trụ đã mở rộng! Tìm 10 đồng xu tiếp theo (11-20)");
+    }
+    
+    // Kiểm tra hoàn thành giai đoạn 2
+    if (score >= 20 && currentPhase === 2) {
+      activateFinalPhase();
+      showPhaseMessage("Vũ trụ đã mở rộng tối đa! Tìm 10 đồng xu cuối cùng (21-30)\nCẩn thận với lỗ đen! Dùng SPACE để bắn");
+    }
+
+    // Kiểm tra hoàn thành game
+    if (score >= 30 && !gameComplete) {
+      gameComplete = true;
+      targetZoom = 1; // Zoom về bình thường khi hoàn thành
+    }
+
+    // Hiển thị trạng thái thắng/thua
+    if (gameComplete || gameOver) {
+      push();
+      scale(1/cameraZoom); // Đảm bảo text không bị zoom
+      fill(gameOver ? 'red' : 'lime');
+      textSize(36);
+      textAlign(CENTER, CENTER);
+      text(gameOver ? 'Bạn đã chọn sai đồng xu hoặc bị hút vào lỗ đen!\nNhấn R để chơi lại' : 
+           'Chúc mừng! Bạn đã thu thập đủ 30 đồng xu!\nNhấn R để chơi lại', 
+           (width/cameraZoom) / 2, (height/cameraZoom) / 2);
+      pop();
+    }
+  }
+
+  function drawCoins() {
+    for (let coin of coins) {
+      if (!coin.collected) {
+        coin.glow += 0.1;
+        // Chỉ quay nếu shouldRotate là true
+        if (coin.shouldRotate) {
+          coin.rotation += 0.05;
+        }
+
+        push();
+        translate(coin.x, coin.y);
+        rotate(coin.rotation);
+        
+        // Màu khác nhau cho từng phase
+        let coinColor;
+        if (coin.phase === 1) {
+          coinColor = [255, 215, 0]; // Vàng cho phase 1
+        } else if (coin.phase === 2) {
+          coinColor = [255, 100, 255]; // Tím cho phase 2
+        } else {
+          // Phase 3: màu đặc biệt cho một số đồng xu
+          if (coin.isSpecial) {
+            // Đồng xu đặc biệt có màu xanh ngọc
+            coinColor = [100, 255, 255];
+          } else {
+            // Đồng xu thường phase 3 màu đỏ
+            coinColor = [255, 100, 100];
+          }
+        }
+        
+        fill(coinColor[0], coinColor[1], coinColor[2], 50 + sin(coin.glow) * 50);
+        noStroke();
+        ellipse(0, 0, coin.size * 2);
+        fill(coinColor[0], coinColor[1], coinColor[2]);
+        stroke(coinColor[0] * 0.7, coinColor[1] * 0.7, coinColor[2] * 0.7);
+        strokeWeight(2);
+        ellipse(0, 0, coin.size);
+        fill(0);
+        textAlign(CENTER, CENTER);
+        textSize(30);
+        textStyle(BOLD);
+        text(coin.number, 0, 0);
+        pop();
+
+        if (!gameOver && dist(player.x, player.y, coin.x, coin.y) < 35) {
+          if (coin.number === expectedCoinNumber) {
+            coin.collected = true;
+            score++;
+            expectedCoinNumber++;
+            for (let i = 0; i < 10; i++) {
+              createSparkle(coin.x, coin.y);
+            }
+            // if (coinSound) coinSound.play();
+            
+            // Đồng xu đặc biệt hồi năng lượng
+            if (coin.isSpecial) {
+              energy = min(100, energy + 30);
+            }
+          } else {
+            gameOver = true;
+            return;
+          }
+        }
+      }
+    }
+  }
+
+  function showPhaseMessage(message) {
+    // Hiển thị thông báo chuyển phase
+    setTimeout(() => {
+      push();
+      scale(1/cameraZoom); // Đảm bảo text không bị zoom
+      fill(255, 255, 0);
+      textSize(24);
+      textAlign(CENTER, CENTER);
+      text(message, (width/cameraZoom) / 2, (height/cameraZoom) / 2 - 100);
+      pop();
+    }, 100);
+  }
+
+  function keyPressed() {
+    if ((gameComplete || gameOver) && key === 'r') {
+      resetGame();
+    }
+    
+    // Bắn laser trong giai đoạn 3
+    if (key === ' ' && currentPhase === 3 && energy >= 20 && millis() - player.lastShot > 300) {
+      shootLaser();
+      player.lastShot = millis();
+      energy -= 20;
+    }
+  }
+
+  function shootLaser() {
+    // Xác định hướng bắn dựa trên hướng di chuyển
+    let angle = atan2(player.vy, player.vx);
+    if (player.vx === 0 && player.vy === 0) {
+      angle = 0; // Mặc định bắn sang phải nếu đứng yên
+    }
+    
+    lasers.push({
+      x: player.x,
+      y: player.y,
+      vx: cos(angle) * 10,
+      vy: sin(angle) * 10,
+      size: 5,
+      life: 100,
+      distance: 0
+    });
+    
+    // if (laserSound) laserSound.play();
+  }
+
+  function updateLasers() {
+    for (let i = lasers.length - 1; i >= 0; i--) {
+      let laser = lasers[i];
+      laser.x += laser.vx;
+      laser.y += laser.vy;
+      laser.life -= 2;
+      laser.distance += dist(0, 0, laser.vx, laser.vy);
+      
+      // Kiểm tra va chạm với lỗ đen
+      for (let j = blackholes.length - 1; j >= 0; j--) {
+        let bh = blackholes[j];
+        if (dist(laser.x, laser.y, bh.x, bh.y) < bh.size/2 + 20) {
+          // Laser bị hút vào lỗ đen
+          lasers.splice(i, 1);
+          bh.life -= 2000; // Giảm thời gian sống của lỗ đen
+          if (bh.life <= 0) {
+            blackholes.splice(j, 1);
+          }
+          break;
+        }
+      }
+      
+      // Xóa laser nếu ra khỏi màn hình hoặc hết đời
+      if (laser.life <= 0 || laser.distance > 1000 || 
+          laser.x < 0 || laser.x > worldWidth || 
+          laser.y < 0 || laser.y > worldHeight) {
+        lasers.splice(i, 1);
+      }
+    }
+  }
+
+  function drawLasers() {
+    for (let laser of lasers) {
+      push();
+      translate(laser.x, laser.y);
+      rotate(atan2(laser.vy, laser.vx));
+      
+      // Vẽ laser
+      fill(0, 255, 255, laser.life);
+      noStroke();
+      rect(0, -laser.size/2, 30, laser.size, 5);
+      
+      // Hiệu ứng sáng
+      fill(255, 255, 255, laser.life * 0.3);
+      rect(0, -laser.size, 40, laser.size * 2, 10);
+      pop();
+    }
+  }
+
+  function updateBlackholes() {
+    for (let i = blackholes.length - 1; i >= 0; i--) {
+      let bh = blackholes[i];
+      bh.rotation += 0.01;
+      bh.life -= (millis() - bh.spawnTime) > bh.life ? 100 : 0; // Giảm life nếu quá thời gian
+      
+      // Hiệu ứng hút
+      if (!player.invincible) {
+        let distance = dist(player.x, player.y, bh.x, bh.y);
+        if (distance < bh.pullRadius) {
+          // Tính lực hút (tỉ lệ nghịch với bình phương khoảng cách)
+          let pullForce = 1000 / (distance * distance);
+          let angle = atan2(bh.y - player.y, bh.x - player.x);
+          
+          player.vx += cos(angle) * pullForce;
+          player.vy += sin(angle) * pullForce;
+          
+          // Kiểm tra nếu bị hút vào lỗ đen
+          if (distance < bh.size/2) {
+            gameOver = true;
+          }
+        }
+      }
+      
+      // Xóa lỗ đen nếu hết đời
+      if (bh.life <= 0) {
+        blackholes.splice(i, 1);
+      }
+    }
+  }
+
+  function drawBlackholes() {
+    for (let bh of blackholes) {
+      push();
+      translate(bh.x, bh.y);
+      rotate(bh.rotation);
+      
+      // Vẽ lỗ đen
+      fill(0);
+      stroke(100, 0, 150);
+      strokeWeight(3);
+      ellipse(0, 0, bh.size);
+      
+      // Vẽ viền xoáy
+      noFill();
+      stroke(150, 0, 200, 150);
+      strokeWeight(2);
+      for (let r = bh.size/2 + 10; r < bh.pullRadius; r += 30) {
+        beginShape();
+        for (let a = 0; a < TWO_PI; a += PI/10) {
+          let xoff = cos(a + bh.rotation * 2) * 5;
+          let yoff = sin(a + bh.rotation * 2) * 5;
+          vertex(cos(a) * (r + xoff), sin(a) * (r + yoff));
+        }
+        endShape(CLOSE);
+      }
+      
+      // Vẽ chân trời sự kiện
+      fill(50, 0, 80, 100);
+      noStroke();
+      ellipse(0, 0, bh.size * 0.8);
+      
+      // Hiệu ứng lõi
+      fill(150, 0, 200, 100);
+      ellipse(0, 0, bh.size * 0.5);
+      
+      // Hiệu ứng sáng
+      fill(200, 100, 255, 50);
+      ellipse(0, 0, bh.size * 1.2);
+      
+      pop();
+      
+      // Hiển thị thời gian còn lại (debug)
+      // fill(255);
+      // text(floor(bh.life/1000), bh.x, bh.y - bh.size/2 - 10);
+    }
+  }
+
+  function drawWorldBorder() {
+    // Vẽ viền thế giới (chỉ trong phase 1)
+    stroke(100, 150, 255);
+    strokeWeight(3);
+    noFill();
+    rect(0, 0, worldWidth, worldHeight);
+    
+    // Vẽ các góc sáng
+    stroke(150, 200, 255);
+    strokeWeight(5);
+    // Góc trên trái
+    line(0, 0, 30, 0);
+    line(0, 0, 0, 30);
+    // Góc trên phải
+    line(worldWidth, 0, worldWidth - 30, 0);
+    line(worldWidth, 0, worldWidth, 30);
+    // Góc dưới trái
+    line(0, worldHeight, 30, worldHeight);
+    line(0, worldHeight, 0, worldHeight - 30);
+    // Góc dưới phải
+    line(worldWidth, worldHeight, worldWidth - 30, worldHeight);
+    line(worldWidth, worldHeight, worldWidth, worldHeight - 30);
+  }
+
+  function drawStars() {
+    for (let star of stars) {
+      star.brightness += sin(frameCount * star.twinkle) * 20;
+      star.brightness = constrain(star.brightness, 100, 255);
+      
+      fill(star.brightness, star.brightness, star.brightness);
+      noStroke();
+      ellipse(star.x, star.y, star.size);
+      
+      // Hiệu ứng lấp lánh
+      if (random() < 0.02) {
+        fill(255, 255, 255, 150);
+        ellipse(star.x, star.y, star.size * 2);
+      }
+    }
+  }
+
+  function createMeteor() {
+    let side = floor(random(4));
+    let meteor = {
+      x: 0,
+      y: 0,
+      vx: 0,
+      vy: 0,
+      size: random(3, 8),
+      life: 255,
+      trail: []
+    };
+    
+    // Xuất phát từ các cạnh khác nhau
+    switch(side) {
+      case 0: // Trên
+        meteor.x = random(player.x - width/cameraZoom, player.x + width/cameraZoom);
+        meteor.y = player.y - height/(2*cameraZoom);
+        meteor.vx = random(-2, 2);
+        meteor.vy = random(3, 8);
+        break;
+      case 1: // Phải
+        meteor.x = player.x + width/(2*cameraZoom);
+        meteor.y = random(player.y - height/cameraZoom, player.y + height/cameraZoom);
+        meteor.vx = random(-8, -3);
+        meteor.vy = random(-2, 2);
+        break;
+      case 2: // Dưới
+        meteor.x = random(player.x - width/cameraZoom, player.x + width/cameraZoom);
+        meteor.y = player.y + height/(2*cameraZoom);
+        meteor.vx = random(-2, 2);
+        meteor.vy = random(-8, -3);
+        break;
+      case 3: // Trái
+        meteor.x = player.x - width/(2*cameraZoom);
+        meteor.y = random(player.y - height/cameraZoom, player.y + height/cameraZoom);
+        meteor.vx = random(3, 8);
+        meteor.vy = random(-2, 2);
+        break;
+    }
+    
+    meteors.push(meteor);
+    meteorCount++;
+  }
+
+  function updateMeteors() {
+    for (let i = meteors.length - 1; i >= 0; i--) {
+      let meteor = meteors[i];
+      meteor.x += meteor.vx;
+      meteor.y += meteor.vy;
+      meteor.life -= 2;
+      
+      // Thêm vào đuôi
+      meteor.trail.push({x: meteor.x, y: meteor.y, alpha: meteor.life});
+      if (meteor.trail.length > 15) {
+        meteor.trail.shift();
+      }
+      
+      // Xóa nếu hết đời
+      if (meteor.life <= 0) {
+        meteors.splice(i, 1);
+      }
+    }
+  }
+
+  function drawMeteors() {
+    for (let meteor of meteors) {
+      // Vẽ đuôi sao băng
+      for (let i = 0; i < meteor.trail.length; i++) {
+        let point = meteor.trail[i];
+        let alpha = map(i, 0, meteor.trail.length - 1, 0, point.alpha);
+        fill(255, 200, 100, alpha);
+        noStroke();
+        ellipse(point.x, point.y, meteor.size * (i / meteor.trail.length));
+      }
+      
+      // Vẽ đầu sao băng
+      fill(255, 255, 200, meteor.life);
+      noStroke();
+      ellipse(meteor.x, meteor.y, meteor.size);
+      
+      // Hiệu ứng sáng
+      fill(255, 255, 255, meteor.life * 0.3);
+      ellipse(meteor.x, meteor.y, meteor.size * 2);
+    }
+  }
+
+  function createSparkle(x, y) {
+    // Tạo hiệu ứng lấp lánh khi thu thập đồng xu
+    // (Có thể thêm sau nếu cần)
+  }
+
+  function drawPlayer() {
+    // Vẽ đuôi tàu vũ trụ
+    if (player.trail.length > 1) {
+      for (let i = 0; i < player.trail.length - 1; i++) {
+        let alpha = map(i, 0, player.trail.length - 1, 0, 100);
+        stroke(0, 150, 255, alpha);
+        strokeWeight(25);
+        line(player.trail[i].x, player.trail[i].y, 
+             player.trail[i + 1].x, player.trail[i + 1].y);
+      }
+    }
+
+    push();
+    translate(player.x, player.y);
+    
+    // Hiệu ứng bất tử (nếu có)
+    if (player.invincible && frameCount % 10 < 5) {
+      tint(255, 150); // Làm nhạt màu
+    }
+    
+    imageMode(CENTER);
+    image(astronautImg, 0, 0, player.size, player.size);
+    pop();
+  }
+
+  function updatePlayer() {
+    // Xử lý input và vật lý bay
+    if (keyIsDown(LEFT_ARROW)) player.vx -= player.thrust;
+    if (keyIsDown(RIGHT_ARROW)) player.vx += player.thrust;
+    if (keyIsDown(UP_ARROW)) player.vy -= player.thrust;
+    if (keyIsDown(DOWN_ARROW)) player.vy += player.thrust;
+    
+    // Áp dụng lực cản
+    player.vx *= player.drag;
+    player.vy *= player.drag;
+    
+    // Cập nhật vị trí
+    player.x += player.vx;
+    player.y += player.vy;
+    
+    // Giới hạn trong thế giới
+    if (currentPhase === 1) {
+      // Trong phase 1, giới hạn bởi tường
+      player.x = constrain(player.x, 30, worldWidth - 30);
+      player.y = constrain(player.y, 30, worldHeight - 30);
+    } else {
+      // Trong phase 2 và 3, cho phép di chuyển tự do trong thế giới mở rộng
+      player.x = constrain(player.x, 0, worldWidth);
+      player.y = constrain(player.y, 0, worldHeight);
+    }
+    
+    // Cập nhật đuôi
+    player.trail.push({x: player.x, y: player.y});
+    if (player.trail.length > 20) {
+      player.trail.shift();
+    }
+  }
+
+  function updateUI() {
+    document.getElementById('score').textContent = score;
+    document.getElementById('meteors').textContent = meteorCount;
+    document.getElementById('energy').textContent = energy;
+    
+    // Cập nhật chỉ báo phase
+    let phaseText;
+    if (currentPhase === 1) {
+      phaseText = 'Giai đoạn 1: Thu thập xu 1-10';
+    } else if (currentPhase === 2) {
+      phaseText = 'Giai đoạn 2: Thu thập xu 11-20 (Vũ trụ mở rộng)';
+    } else {
+      phaseText = 'Giai đoạn 3: Thu thập xu 21-30 (Cẩn thận lỗ đen!)';
+    }
+    document.getElementById('phase-text').textContent = phaseText;
+    
+    // Hiển thị năng lượng bằng màu sắc
+    let energyElement = document.getElementById('energy');
+    if (energy < 20) {
+      energyElement.style.color = 'red';
+    } else if (energy < 50) {
+      energyElement.style.color = 'yellow';
+    } else {
+      energyElement.style.color = 'lime';
+    }
+  }
+
+  function windowResized() {
+    resizeCanvas(windowWidth, windowHeight);
+  }
+  </script>
+</body>
+</html>

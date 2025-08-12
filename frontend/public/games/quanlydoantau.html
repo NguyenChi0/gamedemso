@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Game Sắp Xếp Toa Tàu</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        text-align: center;
+        background-image: url('quanlydoantaubackground.png');
+        background-size: cover;
+        background-position: center;
+        background-attachment: fixed;
+        min-height: 100vh;
+        margin: 0;
+        padding: 20px;
+        overflow-x: hidden;
+    }
+    
+    .game-container {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(5px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 20px;
+        padding: 30px;
+        margin: 20px auto;
+        max-width: 1200px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    }
+    
+    h1 {
+        color: #ffffff;
+        margin-bottom: 30px;
+        font-size: 2.5em;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+        font-weight: bold;
+    }
+    
+    .train-container {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 2px;
+        flex-wrap: nowrap;
+        transition: all 4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        margin: 40px 0;
+        min-height: 150px;
+    }
+
+    .train-container.moving {
+        transform: translateX(calc(100vw + 300px));
+        opacity: 0.2;
+        filter: blur(2px);
+        animation: trainDeparture 4s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+    }
+
+    @keyframes trainDeparture {
+        0% { 
+            transform: translateX(0) scale(1); 
+            opacity: 1;
+            filter: blur(0px);
+        }
+        20% {
+            transform: translateX(50px) scale(1.02);
+            opacity: 0.95;
+        }
+        50% { 
+            transform: translateX(40vw) scale(0.95); 
+            opacity: 0.7;
+            filter: blur(1px);
+        }
+        80% { 
+            transform: translateX(80vw) scale(0.8); 
+            opacity: 0.4;
+            filter: blur(2px);
+        }
+        100% { 
+            transform: translateX(calc(100vw + 300px)) scale(0.6); 
+            opacity: 0.1;
+            filter: blur(3px);
+        }
+    }
+
+    /* Thêm hiệu ứng rung động khi tàu bắt đầu chuyển động */
+    .train-container.preparing {
+        animation: trainPrepare 1s ease-in-out;
+    }
+
+    @keyframes trainPrepare {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-5px); }
+        75% { transform: translateX(5px); }
+    }
+
+    #train {
+        display: flex; 
+        flex-direction: row;
+        gap: -5px;
+        flex-wrap: nowrap;
+    }
+    
+    .engine {
+        width: 150px;
+        height: 150px;
+        background-image: url('dautau.png');
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
+        filter: drop-shadow(3px 3px 6px rgba(0, 0, 0, 0.3));
+        flex-shrink: 0;
+        margin-left: -20px;
+        transition: all 0.3s ease;
+    }
+
+    /* Hiệu ứng khói cho đầu tàu khi thắng */
+    .engine.victory {
+        animation: engineSmoke 0.5s infinite alternate;
+    }
+
+    @keyframes engineSmoke {
+        0% { filter: drop-shadow(3px 3px 6px rgba(0, 0, 0, 0.3)); }
+        100% { filter: drop-shadow(3px 3px 10px rgba(100, 100, 100, 0.5)) brightness(1.1); }
+    }
+    
+    .car {
+        width: 150px;
+        height: 150px;
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
+        border: 3px solid transparent;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        position: relative;
+        filter: drop-shadow(2px 2px 4px rgba(0, 0, 0, 0.2));
+        flex-shrink: 0;
+        margin-left: -12px;
+    }
+    
+    .car:hover {
+        transform: translateY(-5px);
+        filter: drop-shadow(4px 8px 12px rgba(0, 0, 0, 0.4));
+        z-index: 10;
+    }
+    
+    .car.selected {
+        border-color: #f1c40f;
+        transform: scale(1.1) translateY(-5px);
+        box-shadow: 0 0 20px rgba(241, 196, 15, 0.8);
+        animation: pulse 1s infinite;
+        z-index: 10;
+    }
+    
+    @keyframes pulse {
+        0% { box-shadow: 0 0 20px rgba(241, 196, 15, 0.6); }
+        50% { box-shadow: 0 0 30px rgba(241, 196, 15, 1); }
+        100% { box-shadow: 0 0 20px rgba(241, 196, 15, 0.6); }
+    }
+    
+    .car-number {
+        position: absolute;
+        bottom: -25px;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: rgba(52, 73, 94, 0.9);
+        color: white;
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-weight: bold;
+        font-size: 30px;
+        min-width: 20px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+    
+    .message {
+        margin-top: 30px;
+        font-size: 24px;
+        font-weight: bold;
+        min-height: 60px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #ffffff;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+        text-align: center;
+        line-height: 1.4;
+    }
+    
+    .win-message {
+        color: #27ae60;
+        animation: celebration 1.5s ease-in-out infinite;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+    }
+    
+    @keyframes celebration {
+        0%, 100% { 
+            transform: scale(1) rotate(0deg); 
+            color: #27ae60;
+        }
+        25% { 
+            transform: scale(1.05) rotate(1deg); 
+            color: #f39c12;
+        }
+        50% { 
+            transform: scale(1.1) rotate(0deg); 
+            color: #e74c3c;
+        }
+        75% { 
+            transform: scale(1.05) rotate(-1deg); 
+            color: #9b59b6;
+        }
+    }
+    
+    .instructions {
+        background: rgba(52, 152, 219, 0.2);
+        backdrop-filter: blur(5px);
+        -webkit-backdrop-filter: blur(5px);
+        border: 2px solid rgba(52, 152, 219, 0.5);
+        border-radius: 10px;
+        padding: 20px;
+        margin: 20px 0;
+        color: #ffffff;
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+    }
+    
+    .reset-btn {
+        background-color: rgba(231, 76, 60, 0.8);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        color: white;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        padding: 15px 30px;
+        border-radius: 25px;
+        font-size: 16px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        margin-top: 20px;
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+    }
+    
+    .reset-btn:hover {
+        background-color: rgba(192, 57, 43, 0.9);
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(231, 76, 60, 0.4);
+    }
+
+    /* Hiệu ứng sparkle cho celebration */
+    .sparkle {
+        position: absolute;
+        width: 4px;
+        height: 4px;
+        background: #f1c40f;
+        border-radius: 50%;
+        pointer-events: none;
+        animation: sparkleAnimation 2s linear infinite;
+    }
+
+    @keyframes sparkleAnimation {
+        0% {
+            transform: translateY(0) rotate(0deg) scale(0);
+            opacity: 1;
+        }
+        50% {
+            transform: translateY(-30px) rotate(180deg) scale(1);
+            opacity: 0.8;
+        }
+        100% {
+            transform: translateY(-60px) rotate(360deg) scale(0);
+            opacity: 0;
+        }
+    }
+
+    /* Track/Rail effect */
+    .track {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, 
+            transparent 0%, 
+            #8B4513 10%, 
+            #A0522D 50%, 
+            #8B4513 90%, 
+            transparent 100%);
+        opacity: 0;
+        transition: opacity 2s ease-in-out;
+    }
+
+    .track.show {
+        opacity: 0.6;
+        animation: trackExtend 1s ease-out;
+    }
+
+    @keyframes trackExtend {
+        0% { transform: scaleX(0); }
+        100% { transform: scaleX(1); }
+    }
+</style>
+</head>
+<body>
+
+<div class="game-container">
+    <h1>🚂 Sắp Xếp Toa Tàu 🚂</h1>
+    
+    <div class="instructions">
+        <strong>Hướng dẫn:</strong> Nhấn vào hai toa tàu để đổi chỗ chúng. Mục tiêu là sắp xếp các toa tàu theo thứ tự từ <strong>1 đến 9</strong>, đầu tàu ở bên phải!
+    </div>
+    
+    <div class="train-container" id="trainContainer">
+        <div id="train"></div>
+        <div class="engine" id="engine"></div>
+        <div class="track" id="track"></div>
+    </div>
+    
+    <div class="message" id="message"></div>
+    
+    <button class="reset-btn" onclick="resetGame()">🔄 Chơi lại</button>
+</div>
+
+<audio id="winSound" src="quanlydoantau.mp3"></audio>
+
+<script>
+    let numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+    let carImages = ['toatau1.png', 'toatau2.png', 'toatau3.png', 'toatau4.png', 'toatau5.png', 'toatau6.png'];
+    let selectedImages = [];
+    let selectedIndex = null;
+    let gameCompleted = false;
+
+    function initializeGame() {
+        // Random chọn 9 ảnh từ 6 ảnh có sẵn (có thể trùng lặp)
+        selectedImages = [];
+        for (let i = 0; i < 9; i++) {
+            let randomIndex = Math.floor(Math.random() * carImages.length);
+            selectedImages.push(carImages[randomIndex]);
+        }
+        
+        numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+        numbers.sort(() => Math.random() - 0.5);
+        
+        selectedIndex = null;
+        gameCompleted = false;
+        
+        // Reset train position and effects
+        const trainContainer = document.getElementById("trainContainer");
+        const engine = document.getElementById("engine");
+        const track = document.getElementById("track");
+        
+        trainContainer.classList.remove("moving", "preparing");
+        trainContainer.style.transform = "translateX(0)";
+        trainContainer.style.opacity = "1";
+        trainContainer.style.filter = "blur(0px)";
+        
+        engine.classList.remove("victory");
+        track.classList.remove("show");
+        
+        // Clear any sparkles
+        document.querySelectorAll('.sparkle').forEach(sparkle => sparkle.remove());
+        
+        renderTrain();
+        document.getElementById("message").textContent = "";
+        document.getElementById("message").className = "message";
+    }
+
+    function renderTrain() {
+        const trainDiv = document.getElementById("train");
+        trainDiv.innerHTML = "";
+        
+        numbers.forEach((num, index) => {
+            const car = document.createElement("div");
+            car.className = "car" + (index === selectedIndex ? " selected" : "");
+            car.style.backgroundImage = `url('${selectedImages[num - 1]}')`;
+            car.onclick = () => selectCar(index);
+            
+            const numberLabel = document.createElement("div");
+            numberLabel.className = "car-number";
+            numberLabel.textContent = num;
+            car.appendChild(numberLabel);
+            
+            trainDiv.appendChild(car);
+        });
+    }
+
+    function selectCar(index) {
+        if (gameCompleted) return;
+        
+        if (selectedIndex === null) {
+            selectedIndex = index;
+        } else if (selectedIndex === index) {
+            selectedIndex = null;
+        } else {
+            [numbers[selectedIndex], numbers[index]] = [numbers[index], numbers[selectedIndex]];
+            selectedIndex = null;
+            checkWin();
+        }
+        renderTrain();
+    }
+
+    function createSparkles() {
+        const container = document.querySelector('.game-container');
+        for (let i = 0; i < 30; i++) {
+            setTimeout(() => {
+                const sparkle = document.createElement('div');
+                sparkle.className = 'sparkle';
+                sparkle.style.left = Math.random() * 100 + '%';
+                sparkle.style.top = Math.random() * 100 + '%';
+                
+                const colors = ['#f1c40f', '#e67e22', '#e74c3c', '#9b59b6', '#3498db', '#2ecc71'];
+                sparkle.style.background = colors[Math.floor(Math.random() * colors.length)];
+                
+                container.appendChild(sparkle);
+                
+                // Remove sparkle after animation
+                setTimeout(() => {
+                    if (sparkle.parentNode) {
+                        sparkle.parentNode.removeChild(sparkle);
+                    }
+                }, 2000);
+            }, i * 80);
+        }
+    }
+
+    function checkWin() {
+        if (numbers.join(",") === "1,2,3,4,5,6,7,8,9") {
+            gameCompleted = true;
+            const messageDiv = document.getElementById("message");
+            const trainContainer = document.getElementById("trainContainer");
+            const engine = document.getElementById("engine");
+            const track = document.getElementById("track");
+            
+            // Create sparkles
+            createSparkles();
+            
+            // Show track
+            track.classList.add("show");
+            
+            messageDiv.innerHTML = "🎉 Chúc mừng! Bạn đã sắp xếp đúng thứ tự! 🎉";
+            messageDiv.className = "message win-message";
+
+            // Play win sound
+            const winSound = document.getElementById("winSound");
+            if (winSound) {
+                winSound.play().catch(e => console.log("Could not play sound:", e));
+            }
+
+            // Show additional message after 1 second
+            setTimeout(() => {
+                messageDiv.innerHTML += "<br>🎊 Đoàn tàu đang chuẩn bị khởi hành! 🚂💨";
+                
+                // Add preparing animation
+                trainContainer.classList.add("preparing");
+                engine.classList.add("victory");
+            }, 1000);
+
+            // Start train movement after 2.5 seconds
+            setTimeout(() => {
+                trainContainer.classList.remove("preparing");
+                trainContainer.classList.add("moving");
+                
+                messageDiv.innerHTML = "🚂💨 Đoàn tàu 9 toa đang khởi hành! Tạm biệt! 💨🚂";
+                
+                // Final message after train leaves
+                setTimeout(() => {
+                    messageDiv.innerHTML = "🎉 Chúc bạn một chuyến đi vui vẻ! 🎉<br>🔄 Nhấn 'Chơi lại' để tiếp tục thử thách!";
+                    engine.classList.remove("victory");
+                }, 2500);
+            }, 2500);
+        }
+    }
+    
+    function resetGame() {
+        initializeGame();
+    }
+
+    // Initialize game when page loads
+    initializeGame();
+</script>
+
+</body>
+</html>

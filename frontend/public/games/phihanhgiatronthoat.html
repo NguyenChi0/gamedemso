@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Game Đếm Số Đơn Giản</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.2/p5.min.js"></script>
+  <style>
+    body { 
+      margin: 0; 
+      padding: 0; 
+      display: flex; 
+      justify-content: center; 
+      align-items: center; 
+      height: 100vh; 
+      background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+      font-family: 'Arial', sans-serif;
+    }
+    #game-container {
+      position: relative;
+      width: 800px;
+      height: 600px;
+      border: 3px solid #4a90e2;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+      background: #000;
+    }
+    canvas { 
+      display: block; 
+      border-radius: 8px;
+    }
+    #ui {
+      position: absolute;
+      top: 15px;
+      left: 15px;
+      color: white;
+      font-family: 'Arial', sans-serif;
+      font-size: 18px;
+      font-weight: bold;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+      z-index: 10;
+    }
+    .ui-item {
+      background: rgba(0,0,0,0.6);
+      padding: 8px 12px;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      border: 1px solid #4a90e2;
+    }
+    #instructions {
+      position: absolute;
+      bottom: 15px;
+      left: 15px;
+      color: #ccc;
+      font-size: 14px;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+    }
+    .instruction-line {
+      margin-bottom: 3px;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <div id="ui">
+      <div class="ui-item">🏆 Điểm: <span id="score">0</span></div>
+      <div class="ui-item">🪙 Xu: <span id="coinsCollected">0/10</span></div>
+      <div class="ui-item">🎯 Tiếp theo: <span id="nextCoin">1</span></div>
+    </div>
+    <div id="instructions">
+      <div class="instruction-line">⬅️ ➡️ Di chuyển</div>
+      <div class="instruction-line">🚀 SPACE Bay</div>
+      <div class="instruction-line">🔄 R Chơi lại</div>
+    </div>
+  </div>
+
+  <script>
+    let player;
+    let coins = [];
+    let platforms = [];
+    let particles = [];
+    let portal;
+    let score = 0;
+    let nextCoinToCollect = 1;
+    let gravity = 0.1;
+    let flyForce = -0.2;
+    let isFlying = false;
+    let moveState = { left: false, right: false };
+    let gameLost = false;
+    let gameWon = false;
+    let stars = [];
+    let gameTime = 0;
+    let astronautImg;
+
+    function preload() {
+      astronautImg = loadImage('phihanhgia.png');
+    }
+
+    function setup() {
+      let canvas = createCanvas(800, 600);
+      canvas.parent('game-container');
+      
+      player = { 
+        x: 50, 
+        y: 500, 
+        size: 40, 
+        vx: 0, 
+        vy: 0 
+      };
+      
+      // Tạo các ngôi sao nền
+      for (let i = 0; i < 100; i++) {
+        stars.push({
+          x: random(width),
+          y: random(height),
+          size: random(1, 3),
+          brightness: random(100, 255)
+        });
+      }
+      
+      // Tạo các bậc thang với màu sắc gradient
+      platforms = [
+        { x: 0, y: 550, w: 800, h: 50, color: [100, 50, 25] },
+        { x: 100, y: 450, w: 200, h: 20, color: [120, 60, 30] },
+        { x: 450, y: 350, w: 200, h: 20, color: [140, 70, 35] },
+        { x: 150, y: 250, w: 200, h: 20, color: [160, 80, 40] },
+        { x: 500, y: 150, w: 200, h: 20, color: [180, 90, 45] },
+        { x: 300, y: 50, w: 150, h: 20, color: [200, 100, 50] }
+      ];
+      
+      // Vị trí các đồng xu
+      let coinPositions = [
+        { x: 350, y: 20 }, { x: 150, y: 420 }, { x: 250, y: 420 },
+        { x: 500, y: 320 }, { x: 600, y: 320 }, { x: 200, y: 220 },
+        { x: 300, y: 220 }, { x: 550, y: 120 }, { x: 650, y: 120 },
+        { x: 450, y: 20 }
+      ];
+      
+      // Gán giá trị ngẫu nhiên cho các đồng xu
+      let values = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+      for (let i = values.length - 1; i > 0; i--) {
+        let j = Math.floor(Math.random() * (i + 1));
+        [values[i], values[j]] = [values[j], values[i]];
+      }
+      
+      coins = coinPositions.map((pos, index) => ({
+        ...pos,
+        value: values[index],
+        collected: false,
+        pulse: 0
+      }));
+      
+      // Tạo cánh cổng
+      portal = {
+        x: 375,
+        y: 20,
+        size: 50,
+        active: false,
+        pulse: 0
+      };
+    }
+
+    function draw() {
+      gameTime++;
+      
+      // Vẽ background gradient
+      drawBackground();
+      
+      // Vẽ các ngôi sao
+      drawStars();
+      
+      // Vẽ bậc thang với hiệu ứng
+      drawPlatforms();
+      
+      // Vẽ cánh cổng
+      drawPortal();
+      
+      // Cập nhật và vẽ particles (lửa)
+      updateParticles();
+      
+      // Cập nhật và vẽ nhân vật
+      if (!gameLost && !gameWon) updatePlayer();
+      drawPlayer();
+      
+      // Vẽ đồng xu với hiệu ứng
+      drawCoins();
+      
+      // Cập nhật UI
+      updateUI();
+      
+      // Kiểm tra thắng game
+      if (gameWon) {
+        drawWinScreen();
+      }
+      
+      // Kiểm tra thua game
+      if (gameLost) {
+        drawGameOverScreen();
+      }
+    }
+
+    function drawBackground() {
+      for (let i = 0; i <= height; i++) {
+        let inter = map(i, 0, height, 0, 1);
+        let c = lerpColor(color(10, 10, 30), color(30, 30, 80), inter);
+        stroke(c);
+        line(0, i, width, i);
+      }
+    }
+
+    function drawStars() {
+      noStroke();
+      for (let star of stars) {
+        fill(255, 255, 255, star.brightness + sin(gameTime * 0.02 + star.x) * 50);
+        ellipse(star.x, star.y, star.size, star.size);
+      }
+    }
+
+    function drawPlatforms() {
+      noStroke();
+      for (let p of platforms) {
+        fill(0, 0, 0, 100);
+        rect(p.x + 3, p.y + 3, p.w, p.h);
+        
+        for (let i = 0; i < p.h; i++) {
+          let inter = map(i, 0, p.h, 0, 1);
+          let c = lerpColor(
+            color(p.color[0], p.color[1], p.color[2]),
+            color(p.color[0] * 0.6, p.color[1] * 0.6, p.color[2] * 0.6),
+            inter
+          );
+          stroke(c);
+          line(p.x, p.y + i, p.x + p.w, p.y + i);
+        }
+      }
+    }
+
+    function drawPortal() {
+      if (portal.active) {
+        portal.pulse += 0.05;
+        let pulseSize = portal.size + sin(portal.pulse * 2) * 10;
+        
+        // Vẽ vòng sáng xung quanh
+        noStroke();
+        fill(0, 255, 255, 100);
+        ellipse(portal.x, portal.y, pulseSize + 20, pulseSize + 20);
+        
+        // Vẽ cổng chính
+        fill(0, 200, 255);
+        ellipse(portal.x, portal.y, portal.size, portal.size);
+        
+        // Hiệu ứng xoáy
+        stroke(255, 255, 255, 150);
+        strokeWeight(2);
+        noFill();
+        for (let i = 0; i < 3; i++) {
+          let angle = portal.pulse + i * TWO_PI / 3;
+          let r = portal.size * 0.3;
+          arc(portal.x, portal.y, r, r, angle, angle + PI);
+        }
+      } else {
+        // Cổng chưa mở
+        noStroke();
+        fill(100, 100, 100, 150);
+        ellipse(portal.x, portal.y, portal.size, portal.size);
+      }
+    }
+
+    function updatePlayer() {
+      if (isFlying) {
+        createFireParticles();
+      }
+      
+      if (!isFlying) {
+        player.vy += gravity;
+      } else {
+        player.vy += flyForce;
+      }
+      
+      if (moveState.left) player.vx = -5;
+      else if (moveState.right) player.vx = 5;
+      else player.vx *= 0.8;
+      
+      let oldX = player.x;
+      let oldY = player.y;
+      
+      player.x += player.vx;
+      player.y += player.vy;
+      
+      for (let p of platforms) {
+        if (player.x + player.size/2 > p.x && 
+            player.x - player.size/2 < p.x + p.w &&
+            player.y + player.size/2 > p.y && 
+            player.y - player.size/2 < p.y + p.h) {
+          
+          if (oldY + player.size/2 <= p.y && player.vy > 0) {
+            player.y = p.y - player.size/2;
+            player.vy = 0;
+          }
+          else if (oldY - player.size/2 >= p.y + p.h && player.vy < 0) {
+            player.y = p.y + p.h + player.size/2;
+            player.vy = 0;
+          }
+          else if (oldX + player.size/2 <= p.x && player.vx > 0) {
+            player.x = p.x - player.size/2;
+            player.vx = 0;
+          }
+          else if (oldX - player.size/2 >= p.x + p.w && player.vx < 0) {
+            player.x = p.x + p.w + player.size/2;
+            player.vx = 0;
+          }
+        }
+      }
+      
+      if (player.x - player.size/2 < 0) {
+        player.x = player.size/2;
+        player.vx = 0;
+      }
+      if (player.x + player.size/2 > width) {
+        player.x = width - player.size/2;
+        player.vx = 0;
+      }
+      if (player.y - player.size/2 < 0) {
+        player.y = player.size/2;
+        player.vy = 0;
+      }
+      if (player.y + player.size/2 > height) {
+        player.y = height - player.size/2;
+        player.vy = 0;
+      }
+      
+      // Thu thập xu
+      for (let c of coins) {
+        if (!c.collected && dist(player.x, player.y, c.x, c.y) < player.size/2 + 15) {
+          if (c.value === nextCoinToCollect) {
+            c.collected = true;
+            score += c.value;
+            nextCoinToCollect++;
+            createCollectEffect(c.x, c.y);
+            // Kích hoạt cổng khi thu thập đủ xu
+            if (nextCoinToCollect > 10) {
+              portal.active = true;
+            }
+          } else if (c.value > nextCoinToCollect) {
+            gameLost = true;
+          }
+        }
+      }
+      
+      // Kiểm tra va chạm với cổng
+      if (portal.active && dist(player.x, player.y, portal.x, portal.y) < (player.size + portal.size)/2) {
+        gameWon = true;
+      }
+    }
+
+    function drawPlayer() {
+      push();
+      translate(player.x, player.y);
+      imageMode(CENTER);
+      image(astronautImg, 0, 0, player.size, player.size);
+      pop();
+    }
+
+    function createFireParticles() {
+      for (let i = 0; i < random(3, 6); i++) {
+        particles.push({
+          x: player.x + random(-player.size/4, player.size/4),
+          y: player.y + player.size/2,
+          vx: random(-2, 2),
+          vy: random(2, 5),
+          life: 255,
+          maxLife: 255,
+          color: random(['orange', 'red', 'yellow'])
+        });
+      }
+    }
+
+    function createCollectEffect(x, y) {
+      for (let i = 0; i < 10; i++) {
+        particles.push({
+          x: x,
+          y: y,
+          vx: random(-5, 5),
+          vy: random(-5, 5),
+          life: 255,
+          maxLife: 255,
+          color: 'gold'
+        });
+      }
+    }
+
+    function updateParticles() {
+      for (let i = particles.length - 1; i >= 0; i--) {
+        let p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life -= 5;
+        
+        let alpha = map(p.life, 0, p.maxLife, 0, 255);
+        noStroke();
+        
+        if (p.color === 'orange') {
+          fill(255, 165, 0, alpha);
+        } else if (p.color === 'red') {
+          fill(255, 0, 0, alpha);
+        } else if (p.color === 'yellow') {
+          fill(255, 255, 0, alpha);
+        } else if (p.color === 'gold') {
+          fill(255, 215, 0, alpha);
+        }
+        
+        ellipse(p.x, p.y, 8, 8);
+        
+        if (p.life <= 0) {
+          particles.splice(i, 1);
+        }
+      }
+    }
+
+    function drawCoins() {
+      textAlign(CENTER, CENTER);
+      for (let c of coins) {
+        if (!c.collected) {
+          c.pulse += 0.1;
+          
+          if (c.value === nextCoinToCollect) {
+            let pulseSize = 30 + sin(c.pulse * 2) * 5;
+            fill(255, 255, 0, 150);
+            ellipse(c.x, c.y, pulseSize + 10, pulseSize + 10);
+          }
+          
+          fill(255, 215, 0);
+          stroke(255, 180, 0);
+          strokeWeight(2);
+          ellipse(c.x, c.y, 25, 25);
+          
+          fill(0);
+          noStroke();
+          textSize(12);
+          textStyle(BOLD);
+          text(c.value, c.x, c.y);
+        }
+      }
+    }
+
+    function updateUI() {
+      document.getElementById('score').textContent = score;
+      document.getElementById('coinsCollected').textContent = `${nextCoinToCollect - 1}/10`;
+      document.getElementById('nextCoin').textContent = nextCoinToCollect <= 10 ? nextCoinToCollect : 'Tìm cổng!';
+    }
+
+    function drawWinScreen() {
+      fill(0, 0, 0, 200);
+      rect(0, 0, width, height);
+      
+      if (frameCount % 10 === 0) {
+        for (let i = 0; i < 5; i++) {
+          particles.push({
+            x: random(width),
+            y: random(height/2),
+            vx: random(-3, 3),
+            vy: random(-3, 3),
+            life: 255,
+            maxLife: 255,
+            color: random(['orange', 'red', 'yellow', 'gold'])
+          });
+        }
+      }
+      
+      fill(255, 255, 0);
+      textSize(36);
+      textAlign(CENTER, CENTER);
+      textStyle(BOLD);
+      text("🎉 CHÚC MỪNG! 🎉", width/2, height/2 - 40);
+      
+      fill(255);
+      textSize(24);
+      text("BẠN ĐÃ VÀO CỔNG!", width/2, height/2);
+      
+      textSize(18);
+      text(`Điểm số: ${score}`, width/2, height/2 + 40);
+      
+      noLoop();
+    }
+
+    function drawGameOverScreen() {
+      fill(0, 0, 0, 200);
+      rect(0, 0, width, height);
+      
+      fill(255, 100, 100);
+      textSize(36);
+      textAlign(CENTER, CENTER);
+      textStyle(BOLD);
+      text("💥 GAME OVER 💥", width/2, height/2 - 40);
+      
+      fill(255);
+      textSize(20);
+      text("Bạn đã thu thập sai thứ tự!", width/2, height/2);
+      text("Nhấn R để chơi lại", width/2, height/2 + 40);
+    }
+
+    function keyPressed() {
+      if ((gameLost || gameWon) && key === 'r') {
+        resetGame();
+        loop();
+        return;
+      }
+      
+      if (keyCode === LEFT_ARROW) moveState.left = true;
+      if (keyCode === RIGHT_ARROW) moveState.right = true;
+      if (key === ' ') isFlying = true;
+    }
+
+    function keyReleased() {
+      if (keyCode === LEFT_ARROW) moveState.left = false;
+      if (keyCode === RIGHT_ARROW) moveState.right = false;
+      if (key === ' ') isFlying = false;
+    }
+
+    function resetGame() {
+      player = { x: 50, y: 500, size: 40, vx: 0, vy: 0 };
+      particles = [];
+      score = 0;
+      nextCoinToCollect = 1;
+      gameLost = false;
+      gameWon = false;
+      gameTime = 0;
+      
+      let values = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+      for (let i = values.length - 1; i > 0; i--) {
+        let j = Math.floor(Math.random() * (i + 1));
+        [values[i], values[j]] = [values[j], values[i]];
+      }
+      
+      for (let i = 0; i < coins.length; i++) {
+        coins[i].collected = false;
+        coins[i].value = values[i];
+        coins[i].pulse = 0;
+      }
+      
+      // Reset cổng
+      portal.active = false;
+      portal.pulse = 0;
+    }
+
+    window.addEventListener('keydown', function(e) {
+      if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].indexOf(e.code) > -1) {
+        e.preventDefault();
+      }
+    }, false);
+  </script>
+</body>
+</html>
