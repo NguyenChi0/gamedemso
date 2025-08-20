@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import axios from 'axios';
 import { useNavigate, Link } from 'react-router-dom';
+import { loginUser } from '../api';
 
 function Login() {
   const navigate = useNavigate();
@@ -9,13 +9,10 @@ function Login() {
 
   const handleLogin = async () => {
     try {
-      const res = await axios.post('http://localhost:5000/api/auth/login', {
-        username,
-        password,
-      });
+      const res = await loginUser(username, password);
       localStorage.setItem('username', res.data.user.username);
       navigate('/');
-    } catch (err) {
+    } catch {
       alert('Sai tài khoản hoặc mật khẩu');
     }
   };

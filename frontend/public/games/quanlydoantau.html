@@ -36,6 +36,49 @@
         text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
         font-weight: bold;
     }
+
+    /* Timer Display */
+    .timer-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 20px;
+        margin: 20px 0;
+        flex-wrap: wrap;
+    }
+
+    .timer-box {
+        background: rgba(52, 152, 219, 0.3);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-radius: 15px;
+        padding: 15px 25px;
+        color: #ffffff;
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+        font-size: 18px;
+        font-weight: bold;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    .timer-box .timer-label {
+        display: block;
+        font-size: 14px;
+        margin-bottom: 5px;
+        opacity: 0.8;
+    }
+
+    .timer-box .timer-value {
+        display: block;
+        font-size: 24px;
+        color: #f39c12;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+    }
+
+    .best-time {
+        color: #27ae60 !important;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+    }
     
     .train-container {
         display: flex;
@@ -299,6 +342,26 @@
         0% { transform: scaleX(0); }
         100% { transform: scaleX(1); }
     }
+
+    /* New record animation */
+    .new-record {
+        animation: newRecordPulse 1s ease-in-out;
+        background: linear-gradient(45deg, #27ae60, #2ecc71, #27ae60);
+        background-size: 200% 200%;
+        animation: newRecordPulse 1s ease-in-out, gradientShift 2s ease-in-out infinite;
+    }
+
+    @keyframes newRecordPulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+        100% { transform: scale(1); }
+    }
+
+    @keyframes gradientShift {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
 </style>
 </head>
 <body>
@@ -308,6 +371,21 @@
     
     <div class="instructions">
         <strong>Hướng dẫn:</strong> Nhấn vào hai toa tàu để đổi chỗ chúng. Mục tiêu là sắp xếp các toa tàu theo thứ tự từ <strong>1 đến 9</strong>, đầu tàu ở bên phải!
+    </div>
+
+    <div class="timer-container">
+        <div class="timer-box">
+            <span class="timer-label">⏱️ Thời gian hiện tại</span>
+            <span class="timer-value" id="currentTime">00:00</span>
+        </div>
+        <div class="timer-box">
+            <span class="timer-label">🏆 Thời gian tốt nhất</span>
+            <span class="timer-value best-time" id="bestTime">--:--</span>
+        </div>
+        <div class="timer-box">
+            <span class="timer-label">🎮 Số lần chơi</span>
+            <span class="timer-value" id="gamesPlayed">0</span>
+        </div>
     </div>
     
     <div class="train-container" id="trainContainer">
@@ -329,6 +407,81 @@
     let selectedImages = [];
     let selectedIndex = null;
     let gameCompleted = false;
+    
+    // Timer variables
+    let startTime = null;
+    let timerInterval = null;
+    let currentGameTime = 0;
+    let bestTime = parseInt(localStorage?.getItem('trainGameBestTime') || '0') || null;
+    let gamesPlayed = parseInt(localStorage?.getItem('trainGameGamesPlayed') || '0') || 0;
+
+    function formatTime(seconds) {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+
+    function updateTimer() {
+        if (startTime && !gameCompleted) {
+            currentGameTime = Math.floor((Date.now() - startTime) / 1000);
+            document.getElementById('currentTime').textContent = formatTime(currentGameTime);
+        }
+    }
+
+    function startTimer() {
+        if (!startTime && !gameCompleted) {
+            startTime = Date.now();
+            timerInterval = setInterval(updateTimer, 1000);
+        }
+    }
+
+    function stopTimer() {
+        if (timerInterval) {
+            clearInterval(timerInterval);
+            timerInterval = null;
+        }
+    }
+
+    function updateBestTime() {
+        const currentTime = currentGameTime;
+        
+        if (!bestTime || currentTime < bestTime) {
+            bestTime = currentTime;
+            document.getElementById('bestTime').textContent = formatTime(bestTime);
+            document.getElementById('bestTime').parentElement.classList.add('new-record');
+            
+            // Save to localStorage if available
+            try {
+                if (typeof localStorage !== 'undefined') {
+                    localStorage.setItem('trainGameBestTime', bestTime.toString());
+                }
+            } catch (e) {
+                console.log('Could not save best time to storage');
+            }
+            
+            // Remove new record animation after 3 seconds
+            setTimeout(() => {
+                document.getElementById('bestTime').parentElement.classList.remove('new-record');
+            }, 3000);
+            
+            return true; // New record
+        }
+        return false; // No new record
+    }
+
+    function updateGamesPlayed() {
+        gamesPlayed++;
+        document.getElementById('gamesPlayed').textContent = gamesPlayed;
+        
+        // Save to localStorage if available
+        try {
+            if (typeof localStorage !== 'undefined') {
+                localStorage.setItem('trainGameGamesPlayed', gamesPlayed.toString());
+            }
+        } catch (e) {
+            console.log('Could not save games played to storage');
+        }
+    }
 
     function initializeGame() {
         // Random chọn 9 ảnh từ 6 ảnh có sẵn (có thể trùng lặp)
@@ -343,6 +496,12 @@
         
         selectedIndex = null;
         gameCompleted = false;
+        
+        // Reset timer
+        stopTimer();
+        startTime = null;
+        currentGameTime = 0;
+        document.getElementById('currentTime').textContent = '00:00';
         
         // Reset train position and effects
         const trainContainer = document.getElementById("trainContainer");
@@ -363,6 +522,14 @@
         renderTrain();
         document.getElementById("message").textContent = "";
         document.getElementById("message").className = "message";
+
+        // Update display values
+        document.getElementById('gamesPlayed').textContent = gamesPlayed;
+        if (bestTime) {
+            document.getElementById('bestTime').textContent = formatTime(bestTime);
+        } else {
+            document.getElementById('bestTime').textContent = '--:--';
+        }
     }
 
     function renderTrain() {
@@ -386,6 +553,9 @@
 
     function selectCar(index) {
         if (gameCompleted) return;
+        
+        // Start timer on first move
+        startTimer();
         
         if (selectedIndex === null) {
             selectedIndex = index;
@@ -426,10 +596,16 @@
     function checkWin() {
         if (numbers.join(",") === "1,2,3,4,5,6,7,8,9") {
             gameCompleted = true;
+            stopTimer();
+            updateGamesPlayed();
+            
             const messageDiv = document.getElementById("message");
             const trainContainer = document.getElementById("trainContainer");
             const engine = document.getElementById("engine");
             const track = document.getElementById("track");
+            
+            // Check for new record
+            const isNewRecord = updateBestTime();
             
             // Create sparkles
             createSparkles();
@@ -437,7 +613,14 @@
             // Show track
             track.classList.add("show");
             
-            messageDiv.innerHTML = "🎉 Chúc mừng! Bạn đã sắp xếp đúng thứ tự! 🎉";
+            let congratsMessage = "🎉 Chúc mừng! Bạn đã sắp xếp đúng thứ tự! 🎉";
+            if (isNewRecord) {
+                congratsMessage += "<br>🏆 KỶ LỤC MỚI: " + formatTime(currentGameTime) + "! 🏆";
+            } else {
+                congratsMessage += "<br>⏱️ Thời gian: " + formatTime(currentGameTime);
+            }
+            
+            messageDiv.innerHTML = congratsMessage;
             messageDiv.className = "message win-message";
 
             // Play win sound
@@ -453,9 +636,9 @@
                 // Add preparing animation
                 trainContainer.classList.add("preparing");
                 engine.classList.add("victory");
-            }, 1000);
+            }, 1500);
 
-            // Start train movement after 2.5 seconds
+            // Start train movement after 3 seconds
             setTimeout(() => {
                 trainContainer.classList.remove("preparing");
                 trainContainer.classList.add("moving");
@@ -464,10 +647,14 @@
                 
                 // Final message after train leaves
                 setTimeout(() => {
-                    messageDiv.innerHTML = "🎉 Chúc bạn một chuyến đi vui vẻ! 🎉<br>🔄 Nhấn 'Chơi lại' để tiếp tục thử thách!";
+                    let finalMessage = "🎉 Chúc bạn một chuyến đi vui vẻ! 🎉<br>🔄 Nhấn 'Chơi lại' để tiếp tục thử thách!";
+                    if (isNewRecord) {
+                        finalMessage += "<br>🏆 Hãy cố gắng phá vỡ kỷ lục của chính mình!";
+                    }
+                    messageDiv.innerHTML = finalMessage;
                     engine.classList.remove("victory");
                 }, 2500);
-            }, 2500);
+            }, 3000);
         }
     }
     

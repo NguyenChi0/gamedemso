@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import axios from 'axios';
 import { useNavigate, Link } from 'react-router-dom';
+import { registerUser } from '../api';
 
 function Register() {
   const navigate = useNavigate();
@@ -9,13 +9,10 @@ function Register() {
 
   const handleRegister = async () => {
     try {
-      const res = await axios.post('http://localhost:5000/api/auth/register', {
-        username,
-        password,
-      });
+      const res = await registerUser(username, password);
       alert(res.data.message);
       navigate('/login');
-    } catch (err) {
+    } catch {
       alert('Đăng ký thất bại');
     }
   };

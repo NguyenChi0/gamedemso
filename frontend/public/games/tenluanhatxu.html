@@ -45,7 +45,8 @@
     <div>Đồng xu: <span id="score">0</span>/30</div>
     <div>Sao băng: <span id="meteors">0</span></div>
     <div>Năng lượng: <span id="energy">100</span>%</div>
-  </div>
+    <div>Thời gian: <span id="game-time">00:00</span></div>
+</div>
   <div id="phase-indicator">
     <div id="phase-text">Giai đoạn 1: Thu thập xu 1-10</div>
   </div>
@@ -79,6 +80,11 @@
   let lastEnergyUpdate = 0;
   let lastBlackholeSpawn = 0;
   let blackholeCount = 0;
+  let startTime;
+let finishTime;
+let gameDuration = 0;
+let isBoosting = false;
+let boostMultiplier = 1;
 
   let expandedWorld = false;
   let finalPhase = false;
@@ -89,6 +95,12 @@
     // laserSound = loadSound('laser.wav');
     // coinSound = loadSound('coin.wav');
   }
+
+  function formatTime(ms) {
+    let seconds = floor(ms / 1000) % 60;
+    let minutes = floor(ms / 60000);
+    return nf(minutes, 2) + ":" + nf(seconds, 2);
+}
 
   function setup() {
     createCanvas(windowWidth, windowHeight);
@@ -110,6 +122,9 @@
     worldHeight = 1500;
     energy = 100;
     blackholeCount = 0;
+    startTime = millis();
+    finishTime = 0;
+    gameDuration = 0;
 
     player = {
       x: worldWidth / 2,
@@ -315,11 +330,14 @@
       showPhaseMessage("Vũ trụ đã mở rộng tối đa! Tìm 10 đồng xu cuối cùng (21-30)\nCẩn thận với lỗ đen! Dùng SPACE để bắn");
     }
 
-    // Kiểm tra hoàn thành game
-    if (score >= 30 && !gameComplete) {
-      gameComplete = true;
-      targetZoom = 1; // Zoom về bình thường khi hoàn thành
-    }
+    // Trong phần kiểm tra hoàn thành game
+if (score >= 30 && !gameComplete) {
+    gameComplete = true;
+    finishTime = millis();
+    gameDuration = finishTime - startTime;
+    targetZoom = 1;
+    showPhaseMessage(`Hoàn thành trong ${formatTime(gameDuration)}! Nhấn R để chơi lại`);
+}
 
     // Hiển thị trạng thái thắng/thua
     if (gameComplete || gameOver) {
@@ -708,6 +726,17 @@
   }
 
   function drawPlayer() {
+// Vẽ đuôi tàu vũ trụ với màu khác nhau khi boost
+    if (player.trail.length > 1) {
+        for (let i = 0; i < player.trail.length - 1; i++) {
+            let alpha = map(i, 0, player.trail.length - 1, 0, 100);
+            stroke(isBoosting ? 255 : 0, isBoosting ? 100 : 150, 255, alpha);
+            strokeWeight(isBoosting ? 30 : 25); // Đậm hơn khi boost
+            line(player.trail[i].x, player.trail[i].y, 
+                 player.trail[i + 1].x, player.trail[i + 1].y);
+        }
+    }
+
     // Vẽ đuôi tàu vũ trụ
     if (player.trail.length > 1) {
       for (let i = 0; i < player.trail.length - 1; i++) {
@@ -733,6 +762,21 @@
   }
 
   function updatePlayer() {
+// Xử lý boost khi nhấn Shift
+    isBoosting = keyIsDown(SHIFT) && energy > 0;
+    boostMultiplier = isBoosting ? 2 : 1;
+    
+    if (isBoosting) {
+        energy -= 0.5; // Tiêu hao năng lượng khi boost
+        energy = max(0, energy);
+    }
+    
+    // Xử lý input và vật lý bay với boost
+    if (keyIsDown(LEFT_ARROW)) player.vx -= player.thrust * boostMultiplier;
+    if (keyIsDown(RIGHT_ARROW)) player.vx += player.thrust * boostMultiplier;
+    if (keyIsDown(UP_ARROW)) player.vy -= player.thrust * boostMultiplier;
+    if (keyIsDown(DOWN_ARROW)) player.vy += player.thrust * boostMultiplier;
+
     // Xử lý input và vật lý bay
     if (keyIsDown(LEFT_ARROW)) player.vx -= player.thrust;
     if (keyIsDown(RIGHT_ARROW)) player.vx += player.thrust;
@@ -781,6 +825,12 @@
     }
     document.getElementById('phase-text').textContent = phaseText;
     
+    // Cập nhật thời gian chơi
+ if (!gameComplete && !gameOver) {
+        gameDuration = millis() - startTime;
+    }
+    document.getElementById('game-time').textContent = formatTime(gameDuration);
+
     // Hiển thị năng lượng bằng màu sắc
     let energyElement = document.getElementById('energy');
     if (energy < 20) {
