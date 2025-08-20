@@ -1,0 +1,11 @@
+Bước 1 : mở terminal trên VS Code , chọn thư mục muốn tải git
+Bước 2 : chạy lệnh sau trên terminal : git clone https://github.com/NguyenChi0/gamedemso
+Bước 3 : mở database.txt và copy code, vào mysql workbench chạy query đó
+Bước 4 : cấu hình .env trong thư mục backend theo cấu hình trên database 
+Bước 5 : cd vào thư mục frontend chạy lệnh : npm install 
+Bước 6 : chạy chương trình : 
+
+mở 1 terminal : - cd backend
+                - node index.js 
+mở 1 terminal khác : - cd frontend
+                     - npm start 
