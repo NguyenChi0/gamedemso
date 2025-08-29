@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Game Đếm Số</title>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; background: #f4f4f4; }
+    h1 { color: #333; }
+    #numbers { margin: 20px; }
+    .num-btn {
+      display: inline-block;
+      margin: 5px;
+      padding: 15px 25px;
+      font-size: 20px;
+      cursor: pointer;
+      border: none;
+      border-radius: 8px;
+      background: #3498db;
+      color: white;
+      transition: background 0.3s;
+    }
+    .num-btn:hover:not(:disabled) {
+      background: #2980b9;
+    }
+    .num-btn:disabled {
+      background: #aaa;
+      cursor: not-allowed;
+    }
+    #status { margin-top: 20px; font-size: 18px; }
+  </style>
+</head>
+<body>
+  <h1>🎮 Game Đếm Số</h1>
+  <p>Bấm từ số <b>1 → 10</b> càng nhanh càng tốt!</p>
+
+  <!-- Vùng chứa các nút số -->
+  <div id="numbers"></div>
+
+  <!-- Thông báo trạng thái -->
+  <div id="status"></div>
+
+  <script>
+    // --- Biến toàn cục ---
+    let current = 1;     // số hiện tại cần bấm
+    let startTime;       // thời gian bắt đầu
+    let endTime;         // thời gian kết thúc
+
+    // --- Khởi động game ---
+    function startGame() {
+      const container = document.getElementById("numbers");
+      container.innerHTML = "";   // xóa nút cũ
+      current = 1;                // reset số
+      startTime = Date.now();     // bắt đầu tính giờ
+
+      // Tạo danh sách số 1 → 10, sau đó xáo trộn
+      const nums = Array.from({ length: 10 }, (_, i) => i + 1);
+      nums.sort(() => Math.random() - 0.5);
+
+      // Sinh các button số và gắn vào màn hình
+      nums.forEach(n => {
+        const btn = document.createElement("button");
+        btn.textContent = n;
+        btn.className = "num-btn";
+        btn.onclick = () => handleClick(btn, n);
+        container.appendChild(btn);
+      });
+    }
+
+    // --- Xử lý khi người chơi bấm số ---
+    function handleClick(btn, n) {
+      if (n === current) {
+        // Nếu đúng thì disable nút
+        btn.disabled = true;
+        current++;
+        // Nếu đã bấm hết 10 số thì kết thúc
+        if (current > 10) finishGame();
+      } else {
+        // Nếu bấm sai thì báo lỗi
+        document.getElementById("status").textContent =
+          "❌ Sai rồi, hãy bấm đúng số tiếp theo!";
+      }
+    }
+
+    // --- Khi hoàn thành game ---
+    function finishGame() {
+      endTime = Date.now();
+      const timeTaken = ((endTime - startTime) / 1000).toFixed(2); // tính giây
+      const score = 10; // vì bấm đủ 10 số thì được 10 điểm
+
+      // Hiện kết quả ra màn hình
+      document.getElementById("status").textContent =
+        `🎉 Hoàn thành! Thời gian: ${timeTaken} giây. Điểm: ${score}`;
+
+      // Gửi dữ liệu sang React (GameViewer.js)
+      // React sẽ nhận event.data.score và event.data.time
+      window.parent.postMessage(
+        { score: score, time: parseFloat(timeTaken) },
+        "*"
+      );
+    }
+
+    // --- Bắt đầu ngay khi tải trang ---
+    window.onload = startGame;
+  </script>
+</body>
+</html>
