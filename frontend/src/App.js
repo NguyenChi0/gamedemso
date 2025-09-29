@@ -7,7 +7,7 @@ import GameViewer from './components/gameviewer';
 
 function App() {
   return (
-    <Router>
+    <Router homepage="gamedemso">
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
