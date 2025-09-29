@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Tàu hải tặc 3D</title>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { Water } from "three/addons/objects/Water.js";
+
+// Scene + Camera + Renderer
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87ceeb);
+
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+camera.position.set(15, 10, 20);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+// Ánh sáng
+const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+dirLight.position.set(20, 20, 10);
+scene.add(dirLight);
+scene.add(new THREE.AmbientLight(0x555555));
+
+// ================== THÂN TÀU ==================
+const points = [];
+for (let i = 0; i < 25; i++) {
+  points.push(new THREE.Vector2(Math.sin(i * 0.15) * 1.6 + 0.8, i * 0.15));
+}
+const hullGeometry = new THREE.LatheGeometry(points, 40);
+const hullMaterial = new THREE.MeshPhongMaterial({ color: 0x4b2e15 });
+const hull = new THREE.Mesh(hullGeometry, hullMaterial);
+hull.rotation.x = Math.PI / 2;
+hull.scale.set(3, 1.2, 1.2);
+hull.position.y = 0.5;
+scene.add(hull);
+
+// ================== CỘT BUỒM ==================
+function createMast(x, y, z, height) {
+  const mast = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.15, 0.15, height, 16),
+    new THREE.MeshPhongMaterial({ color: 0xaaaaaa })
+  );
+  mast.position.set(x, y + height/2, z);
+  scene.add(mast);
+  return mast;
+}
+
+const mast1 = createMast(-2, 1, 0, 7);
+const mast2 = createMast(0, 1, 0, 9);
+const mast3 = createMast(2, 1, 0, 6);
+
+// ================== BUỒM HẢI TẶC ==================
+function createSail(x, y, z, w, h, rotateY = 0) {
+  const sail = new THREE.Mesh(
+    new THREE.PlaneGeometry(w, h),
+    new THREE.MeshPhongMaterial({ color: 0x111111, side: THREE.DoubleSide })
+  );
+  sail.position.set(x, y, z);
+  sail.rotation.y = rotateY;
+  scene.add(sail);
+  return sail;
+}
+
+// Buồm chính
+createSail(0, 5, 2.5, 4, 5, 0);    // buồm trước
+createSail(0, 6, -2.5, 5, 6, Math.PI); // buồm giữa
+createSail(2, 4, 2, 3, 4, 0);    // buồm sau
+
+// ================== CỜ HẢI TẶC ==================
+const flag = new THREE.Mesh(
+  new THREE.PlaneGeometry(2, 1),
+  new THREE.MeshPhongMaterial({ color: 0x000000, side: THREE.DoubleSide })
+);
+flag.position.set(0, 10, 0);
+flag.rotation.y = Math.PI / 2;
+scene.add(flag);
+
+// ================== MẶT NƯỚC ==================
+const waterGeometry = new THREE.PlaneGeometry(200, 200);
+const water = new Water(waterGeometry, {
+  color: 0x1e90ff,
+  scale: 4,
+  flowDirection: new THREE.Vector2(1, 1),
+  textureWidth: 1024,
+  textureHeight: 1024
+});
+water.rotation.x = -Math.PI / 2;
+scene.add(water);
+
+// Điều khiển camera
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+
+// Render loop
+function animate() {
+  requestAnimationFrame(animate);
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+window.addEventListener("resize", () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+</script>
+</body>
+</html>

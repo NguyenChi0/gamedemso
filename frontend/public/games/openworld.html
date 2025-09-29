@@ -1,0 +1,1301 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Tile World - Four Areas Layout (with Coins)</title>
+<style>
+  html,body { height:100%; margin:0; background:#111; color:#eee; font-family:Segoe UI,Roboto,Arial; touch-action: none; }
+  #container { display:flex; height:100vh; align-items:center; justify-content:center; position: relative; }
+  canvas { background: linear-gradient(#0b2540,#082036); box-shadow: 0 8px 30px rgba(0,0,0,0.7); border-radius:8px; }
+  .hud { position: absolute; left:12px; top:12px; background: rgba(0,0,0,0.4); padding:8px 10px; border-radius:6px; font-size:13px; }
+  .hint { position: absolute; right:12px; bottom:12px; background: rgba(0,0,0,0.35); padding:6px 8px; border-radius:6px; font-size:12px; opacity:0.9; }
+  .notification {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.7);
+    color: #ffd700;
+    padding: 10px 20px;
+    border-radius: 5px;
+    font-size: 16px;
+    opacity: 0;
+    transition: opacity 0.5s;
+    pointer-events: none;
+  }
+
+  .character-menu {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.menu-title {
+  color: #fff;
+  font-size: 32px;
+  font-weight: bold;
+  margin-bottom: 30px;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+}
+
+.character-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.character-card {
+  width: 120px;
+  height: 150px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-radius: 15px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s;
+  backdrop-filter: blur(5px);
+}
+
+.character-card:hover {
+  transform: scale(1.05);
+  border-color: #ffd700;
+  background: rgba(255, 215, 0, 0.2);
+}
+
+.character-card.selected {
+  border-color: #ffd700;
+  background: rgba(255, 215, 0, 0.3);
+  transform: scale(1.1);
+}
+
+.character-preview {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+}
+
+.character-name {
+  color: #fff;
+  font-weight: bold;
+  text-align: center;
+  font-size: 14px;
+}
+
+.start-btn {
+  background: linear-gradient(45deg, #4CAF50, #45a049);
+  color: white;
+  border: none;
+  padding: 15px 30px;
+  font-size: 18px;
+  font-weight: bold;
+  border-radius: 25px;
+  cursor: pointer;
+  transition: all 0.3s;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+}
+
+.start-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+}
+
+/* Mobile Controls */
+.mobile-controls {
+  position: absolute;
+  bottom: 20px;
+  left: 0;
+  right: 0;
+  display: none;
+  justify-content: space-between;
+  padding: 0 20px;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.joy-area {
+  width: 120px;
+  height: 120px;
+  position: relative;
+  pointer-events: auto;
+}
+
+.joy-base {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.joy-stick {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.8);
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  transition: transform 0.1s;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+}
+
+.boost-btn {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: rgba(255, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: bold;
+  font-size: 14px;
+  text-align: center;
+  pointer-events: auto;
+  backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  user-select: none;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+.boost-btn.active {
+  background: rgba(255, 0, 0, 0.8);
+  transform: scale(0.95);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .mobile-controls {
+    display: flex;
+  }
+  
+  .hint {
+    display: none;
+  }
+  
+  .hud {
+    font-size: 11px;
+    max-width: 40%;
+    overflow: hidden;
+  }
+}
+</style>
+</head>
+<body>
+<div id="container">
+  <canvas id="game"></canvas>
+  <div class="hud" id="hud"></div>
+  <div class="hint">WASD / Arrows = move · Shift = run · R = reset position</div>
+  <div class="notification" id="notification"></div>
+  
+  <!-- Mobile Controls -->
+  <div class="mobile-controls">
+    <div class="joy-area">
+      <div class="joy-base"></div>
+      <div class="joy-stick" id="joyStick"></div>
+    </div>
+    <div class="boost-btn" id="boostBtn">BOOST</div>
+  </div>
+</div>
+
+<script>
+// Character definitions
+const CHARACTERS = [
+  {
+    id: 'yellow',
+    name: 'Sunny',
+    color: '#ffd86b',
+    borderColor: '#cc5',
+    emoji: '😊',
+    speed: 200,
+    description: 'Balanced character'
+  },
+  {
+    id: 'blue',
+    name: 'Aqua',
+    color: '#4a90e2',
+    borderColor: '#357abd',
+    emoji: '💧',
+    speed: 180,
+    description: 'Steady and reliable'
+  },
+  {
+    id: 'red',
+    name: 'Blaze',
+    color: '#e74c3c',
+    borderColor: '#c0392b',
+    emoji: '🔥',
+    speed: 250,
+    description: 'Fast but energetic'
+  },
+  {
+    id: 'green',
+    name: 'Forest',
+    color: '#2ecc71',
+    borderColor: '#27ae60',
+    emoji: '🌿',
+    speed: 160,
+    description: 'Slow but efficient'
+  },
+  {
+    id: 'purple',
+    name: 'Mystic',
+    color: '#9b59b6',
+    borderColor: '#8e44ad',
+    emoji: '✨',
+    speed: 220,
+    description: 'Magical and swift'
+  }
+];
+
+// Game state variables
+let gameState = 'menu'; // 'menu' or 'playing'
+let selectedCharacter = CHARACTERS[0];
+let gameLoopRunning = false;
+const CANVAS_DISPLAY_WIDTH = Math.min(window.innerWidth - 40, 900);
+const CANVAS_DISPLAY_HEIGHT = Math.min(window.innerHeight - 80, 600);
+
+const canvas = document.getElementById('game');
+canvas.width = CANVAS_DISPLAY_WIDTH;
+canvas.height = CANVAS_DISPLAY_HEIGHT;
+const ctx = canvas.getContext('2d');
+
+const hud = document.getElementById('hud');
+const notification = document.getElementById('notification');
+
+// Mobile controls elements
+const joyStick = document.getElementById('joyStick');
+const boostBtn = document.getElementById('boostBtn');
+
+// TILE SYSTEM - Increased size for bigger world
+const TILE_SIZE = 128;
+const WORLD_TILES_X = 40; // Doubled from 20
+const WORLD_TILES_Y = 40; // Doubled from 20
+
+// TILE TYPES - Added fence types
+const TILE_TYPES = {
+  GRASS: 0,
+  ROAD_HORIZONTAL: 2,
+  ROAD_VERTICAL: 3,
+  ROAD_CROSS: 8,
+  FENCE_HORIZONTAL: 10,
+  FENCE_VERTICAL: 11,
+  FENCE_CORNER_TOP_LEFT: 12,
+  FENCE_CORNER_TOP_RIGHT: 13,
+  FENCE_CORNER_BOTTOM_LEFT: 14,
+  FENCE_CORNER_BOTTOM_RIGHT: 15,
+  FENCE_GATE: 16
+};
+
+// WORLD
+const world = { 
+  width: WORLD_TILES_X * TILE_SIZE, 
+  height: WORLD_TILES_Y * TILE_SIZE 
+};
+
+// TILE MAP
+const tileMap = [];
+for (let y = 0; y < WORLD_TILES_Y; y++) {
+  tileMap[y] = [];
+  for (let x = 0; x < WORLD_TILES_X; x++) {
+    // Default to grass
+    tileMap[y][x] = TILE_TYPES.GRASS;
+  }
+}
+
+// Create cross-shaped road pattern dividing world into 4 areas
+function createCrossRoadPattern() {
+  // Calculate middle positions
+  const midX = Math.floor(WORLD_TILES_X / 2);
+  const midY = Math.floor(WORLD_TILES_Y / 2);
+  
+  // Create horizontal road across the entire width
+  for (let x = 0; x < WORLD_TILES_X; x++) {
+    tileMap[midY][x] = TILE_TYPES.ROAD_HORIZONTAL;
+  }
+  
+  // Create vertical road across the entire height
+  for (let y = 0; y < WORLD_TILES_Y; y++) {
+    tileMap[y][midX] = TILE_TYPES.ROAD_VERTICAL;
+  }
+  
+  // Cross intersection in the center
+  tileMap[midY][midX] = TILE_TYPES.ROAD_CROSS;
+}
+
+// Create fences around areas 2, 3, and 4
+function createFences() {
+  const midX = Math.floor(WORLD_TILES_X / 2);
+  const midY = Math.floor(WORLD_TILES_Y / 2);
+  
+  // Area 2 (Top-Right) - Add fences on all sides except where roads are
+  for (let x = midX + 1; x < WORLD_TILES_X - 1; x++) {
+    tileMap[1][x] = TILE_TYPES.FENCE_HORIZONTAL; // Top fence
+    tileMap[midY - 1][x] = TILE_TYPES.FENCE_HORIZONTAL; // Bottom fence (above road)
+  }
+  
+  for (let y = 2; y < midY - 1; y++) {
+    tileMap[y][midX + 1] = TILE_TYPES.FENCE_VERTICAL; // Left fence (right of road)
+    tileMap[y][WORLD_TILES_X - 2] = TILE_TYPES.FENCE_VERTICAL; // Right fence
+  }
+  
+  // Area 3 (Bottom-Left) - Add fences on all sides except where roads are
+  for (let x = 1; x < midX; x++) {
+    tileMap[midY + 1][x] = TILE_TYPES.FENCE_HORIZONTAL; // Top fence (below road)
+    tileMap[WORLD_TILES_Y - 2][x] = TILE_TYPES.FENCE_HORIZONTAL; // Bottom fence
+  }
+  
+  for (let y = midY + 2; y < WORLD_TILES_Y - 2; y++) {
+    tileMap[y][1] = TILE_TYPES.FENCE_VERTICAL; // Left fence
+    tileMap[y][midX - 1] = TILE_TYPES.FENCE_VERTICAL; // Right fence (left of road)
+  }
+  
+  // Area 4 (Bottom-Right) - Add fences on all sides except where roads are
+  for (let x = midX + 1; x < WORLD_TILES_X - 1; x++) {
+    tileMap[midY + 1][x] = TILE_TYPES.FENCE_HORIZONTAL; // Top fence (below road)
+    tileMap[WORLD_TILES_Y - 2][x] = TILE_TYPES.FENCE_HORIZONTAL; // Bottom fence
+  }
+  
+  for (let y = midY + 2; y < WORLD_TILES_Y - 2; y++) {
+    tileMap[y][midX + 1] = TILE_TYPES.FENCE_VERTICAL; // Left fence (right of road)
+    tileMap[y][WORLD_TILES_X - 2] = TILE_TYPES.FENCE_VERTICAL; // Right fence
+  }
+  
+  // Add corner fences
+  // Area 2 corners
+  tileMap[1][midX + 1] = TILE_TYPES.FENCE_CORNER_BOTTOM_LEFT;
+  tileMap[1][WORLD_TILES_X - 2] = TILE_TYPES.FENCE_CORNER_BOTTOM_RIGHT;
+  tileMap[midY - 1][midX + 1] = TILE_TYPES.FENCE_CORNER_TOP_LEFT;
+  tileMap[midY - 1][WORLD_TILES_X - 2] = TILE_TYPES.FENCE_CORNER_TOP_RIGHT;
+  
+  // Area 3 corners
+  tileMap[midY + 1][1] = TILE_TYPES.FENCE_CORNER_TOP_LEFT;
+  tileMap[midY + 1][midX - 1] = TILE_TYPES.FENCE_CORNER_TOP_RIGHT;
+  tileMap[WORLD_TILES_Y - 2][1] = TILE_TYPES.FENCE_CORNER_BOTTOM_LEFT;
+  tileMap[WORLD_TILES_Y - 2][midX - 1] = TILE_TYPES.FENCE_CORNER_BOTTOM_RIGHT;
+  
+  // Area 4 corners
+  tileMap[midY + 1][midX + 1] = TILE_TYPES.FENCE_CORNER_TOP_LEFT;
+  tileMap[midY + 1][WORLD_TILES_X - 2] = TILE_TYPES.FENCE_CORNER_TOP_RIGHT;
+  tileMap[WORLD_TILES_Y - 2][midX + 1] = TILE_TYPES.FENCE_CORNER_BOTTOM_LEFT;
+  tileMap[WORLD_TILES_Y - 2][WORLD_TILES_X - 2] = TILE_TYPES.FENCE_CORNER_BOTTOM_RIGHT;
+  
+  // Add gates on the roads for access
+  tileMap[midY - 1][midX] = TILE_TYPES.FENCE_GATE; // Top area gate
+  tileMap[midY][midX - 1] = TILE_TYPES.FENCE_GATE; // Left area gate
+  tileMap[midY][midX + 1] = TILE_TYPES.FENCE_GATE; // Right area gate
+  tileMap[midY + 1][midX] = TILE_TYPES.FENCE_GATE; // Bottom area gate
+}
+
+createCrossRoadPattern();
+createFences();
+
+// COINS
+const coins = []; // {id, x, y, collected, zone}
+const COIN_RADIUS = 20;
+
+function createCoins() {
+  // fixed safe placement per zone, avoid fences/roads and tiles adjacent to fences
+  coins.length = 0;
+  const midX = Math.floor(WORLD_TILES_X / 2);
+  const midY = Math.floor(WORLD_TILES_Y / 2);
+
+  function isFenceLike(t) {
+    return [
+      TILE_TYPES.FENCE_HORIZONTAL,
+      TILE_TYPES.FENCE_VERTICAL,
+      TILE_TYPES.FENCE_CORNER_TOP_LEFT,
+      TILE_TYPES.FENCE_CORNER_TOP_RIGHT,
+      TILE_TYPES.FENCE_CORNER_BOTTOM_LEFT,
+      TILE_TYPES.FENCE_CORNER_BOTTOM_RIGHT,
+      TILE_TYPES.FENCE_GATE
+    ].includes(t);
+  }
+
+  // check tile itself and its 8-neighbours are not fence; also not road
+  function isSafeTile(tx, ty) {
+    if (tx < 0 || ty < 0 || tx >= WORLD_TILES_X || ty >= WORLD_TILES_Y) return false;
+    const t = tileMap[ty][tx];
+    if (t === TILE_TYPES.ROAD_HORIZONTAL || t === TILE_TYPES.ROAD_VERTICAL || t === TILE_TYPES.ROAD_CROSS) return false;
+    // don't allow fence or immediate neighbour to be fence
+    for (let oy = -1; oy <= 1; oy++) {
+      for (let ox = -1; ox <= 1; ox++) {
+        const nx = tx + ox, ny = ty + oy;
+        if (nx < 0 || ny < 0 || nx >= WORLD_TILES_X || ny >= WORLD_TILES_Y) continue;
+        if (isFenceLike(tileMap[ny][nx])) return false;
+      }
+    }
+    return true;
+  }
+
+  function placeFixedInArea(startId, count, tx0, ty0, tx1, ty1, zone) {
+    const positions = [];
+    for (let ty = ty0; ty <= ty1; ty++) {
+      for (let tx = tx0; tx <= tx1; tx++) {
+        if (isSafeTile(tx, ty)) positions.push({ tx, ty });
+      }
+    }
+    // if not enough safe positions, relax margin (fallback)
+    if (positions.length < count) {
+      for (let ty = Math.max(0, ty0-1); ty <= Math.min(WORLD_TILES_Y-1, ty1+1); ty++) {
+        for (let tx = Math.max(0, tx0-1); tx <= Math.min(WORLD_TILES_X-1, tx1+1); tx++) {
+          if (!positions.some(p => p.tx === tx && p.ty === ty) && isSafeTile(tx, ty)) positions.push({ tx, ty });
+        }
+      }
+    }
+
+    const step = Math.max(1, Math.floor(positions.length / count));
+    for (let i = 0; i < count; i++) {
+      const idx = positions.length ? (i * step) % positions.length : 0;
+      const p = positions[idx] || { tx: tx0, ty: ty0 };
+      const cx = p.tx * TILE_SIZE + TILE_SIZE / 2;
+      const cy = p.ty * TILE_SIZE + TILE_SIZE / 2;
+      coins.push({ id: startId + i, x: cx, y: cy, collected: false, zone });
+    }
+  }
+
+  // safe margins chosen to avoid roads/gates and fences
+  placeFixedInArea(1, 10, 2, 2, midX - 2, midY - 2, 1); // top-left
+  placeFixedInArea(11, 10, midX + 2, 2, WORLD_TILES_X - 3, midY - 2, 2); // top-right
+  placeFixedInArea(21, 10, 2, midY + 2, midX - 2, WORLD_TILES_Y - 3, 3); // bottom-left
+  placeFixedInArea(31, 10, midX + 2, midY + 2, WORLD_TILES_X - 3, WORLD_TILES_Y - 3, 4); // bottom-right
+}
+
+createCoins();
+
+// Zone progression: only coins with active==true can be collected; unlock next zone when current zone cleared
+let currentZone = 1;
+let zonesUnlocked = [true, false, false, false]; // Track which zones are unlocked
+let nextCoinId = 1; // ID của đồng xu tiếp theo cần thu thập
+
+// PLAYER
+const player = {
+  x: world.width / 4, // Start in top-left area
+  y: world.height / 4,
+  radius: 16,
+  color: '#ffd86b',
+  baseSpeed: 200,
+  runMultiplier: 1.8
+};
+
+// CAMERA
+const camera = {
+  x: 0, y: 0,
+  width: CANVAS_DISPLAY_WIDTH,
+  height: CANVAS_DISPLAY_HEIGHT,
+  update() {
+    this.x = player.x - this.width / 2;
+    this.y = player.y - this.height / 2;
+    if (this.x < 0) this.x = 0;
+    if (this.y < 0) this.y = 0;
+    if (this.x + this.width > world.width) this.x = world.width - this.width;
+    if (this.y + this.height > world.height) this.y = world.height - this.height;
+  }
+};
+
+// INPUT
+const keys = {};
+window.addEventListener('keydown', e => {
+  keys[e.key.toLowerCase()] = true;
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) e.preventDefault();
+});
+window.addEventListener('keyup', e => {
+  keys[e.key.toLowerCase()] = false;
+});
+
+window.addEventListener('keydown', e => {
+  if (e.key.toLowerCase() === 'r') {
+    player.x = world.width / 4;
+    player.y = world.height / 4;
+  }
+});
+
+// Mobile controls state
+let joyActive = false;
+let joyStartX = 0;
+let joyStartY = 0;
+let joyX = 0;
+let joyY = 0;
+let boostActive = false;
+
+// Setup mobile controls
+function setupMobileControls() {
+  const joyArea = document.querySelector('.joy-area');
+  
+  // Touch events for joystick
+  joyArea.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    const rect = joyArea.getBoundingClientRect();
+    joyStartX = rect.left + rect.width / 2;
+    joyStartY = rect.top + rect.height / 2;
+    joyActive = true;
+    updateJoyStick(e.touches[0].clientX, e.touches[0].clientY);
+  });
+  
+  joyArea.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    if (joyActive) {
+      updateJoyStick(e.touches[0].clientX, e.touches[0].clientY);
+    }
+  });
+  
+  joyArea.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    resetJoyStick();
+  });
+  
+  joyArea.addEventListener('touchcancel', (e) => {
+    e.preventDefault();
+    resetJoyStick();
+  });
+  
+  // Mouse events for testing on desktop
+  joyArea.addEventListener('mousedown', (e) => {
+    const rect = joyArea.getBoundingClientRect();
+    joyStartX = rect.left + rect.width / 2;
+    joyStartY = rect.top + rect.height / 2;
+    joyActive = true;
+    updateJoyStick(e.clientX, e.clientY);
+  });
+  
+  document.addEventListener('mousemove', (e) => {
+    if (joyActive) {
+      updateJoyStick(e.clientX, e.clientY);
+    }
+  });
+  
+  document.addEventListener('mouseup', () => {
+    if (joyActive) {
+      resetJoyStick();
+    }
+  });
+  
+  // Boost button events
+  boostBtn.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    boostActive = true;
+    boostBtn.classList.add('active');
+  });
+  
+  boostBtn.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    boostActive = false;
+    boostBtn.classList.remove('active');
+  });
+  
+  boostBtn.addEventListener('touchcancel', (e) => {
+    e.preventDefault();
+    boostActive = false;
+    boostBtn.classList.remove('active');
+  });
+  
+  // Mouse events for boost button
+  boostBtn.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    boostActive = true;
+    boostBtn.classList.add('active');
+  });
+  
+  document.addEventListener('mouseup', (e) => {
+    if (boostActive) {
+      boostActive = false;
+      boostBtn.classList.remove('active');
+    }
+  });
+}
+
+function updateJoyStick(clientX, clientY) {
+  const maxDist = 35; // Maximum distance the stick can move
+  
+  // Calculate distance from center
+  const dx = clientX - joyStartX;
+  const dy = clientY - joyStartY;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+  
+  // Normalize if beyond max distance
+  if (dist > maxDist) {
+    joyX = (dx / dist) * maxDist;
+    joyY = (dy / dist) * maxDist;
+  } else {
+    joyX = dx;
+    joyY = dy;
+  }
+  
+  // Update stick position
+  joyStick.style.transform = `translate(calc(-50% + ${joyX}px), calc(-50% + ${joyY}px))`;
+}
+
+function resetJoyStick() {
+  joyActive = false;
+  joyX = 0;
+  joyY = 0;
+  joyStick.style.transform = 'translate(-50%, -50%)';
+}
+
+// TILE RENDERING
+function drawTile(tileType, x, y) {
+  const screenX = x * TILE_SIZE - camera.x;
+  const screenY = y * TILE_SIZE - camera.y;
+  
+  // Skip tiles outside viewport
+  if (screenX + TILE_SIZE < 0 || screenX > canvas.width || 
+      screenY + TILE_SIZE < 0 || screenY > canvas.height) {
+    return;
+  }
+  
+  ctx.save();
+  
+  switch (tileType) {
+    case TILE_TYPES.GRASS:
+      // Smooth green grass color
+      ctx.fillStyle = '#228B22'; // Forest green
+      ctx.fillRect(screenX, screenY, TILE_SIZE, TILE_SIZE);
+      break;
+      
+    case TILE_TYPES.ROAD_HORIZONTAL:
+      ctx.fillStyle = '#555';
+      ctx.fillRect(Math.floor(screenX), Math.floor(screenY), TILE_SIZE, TILE_SIZE);
+      // Road markings
+      ctx.fillStyle = '#777';
+      ctx.fillRect(Math.floor(screenX), Math.floor(screenY + TILE_SIZE/2 - 2), TILE_SIZE, 4);
+      break;
+      
+    case TILE_TYPES.ROAD_VERTICAL:
+      ctx.fillStyle = '#555';
+      ctx.fillRect(Math.floor(screenX), Math.floor(screenY), TILE_SIZE, TILE_SIZE);
+      // Road markings
+      ctx.fillStyle = '#777';
+      ctx.fillRect(Math.floor(screenX + TILE_SIZE/2 - 2), Math.floor(screenY), 4, TILE_SIZE);
+      break;
+      
+    case TILE_TYPES.ROAD_CROSS:
+      ctx.fillStyle = '#555';
+      ctx.fillRect(Math.floor(screenX), Math.floor(screenY), TILE_SIZE, TILE_SIZE);
+      break;
+      
+    case TILE_TYPES.FENCE_HORIZONTAL:
+      ctx.fillStyle = '#228B22';
+      ctx.fillRect(screenX, screenY, TILE_SIZE, TILE_SIZE);
+      // Draw horizontal fence
+      ctx.fillStyle = '#8B4513'; // Brown wood color
+      ctx.fillRect(screenX, screenY + TILE_SIZE/2 - 5, TILE_SIZE, 10);
+      // Fence posts
+      for (let i = 0; i < 4; i++) {
+        ctx.fillRect(screenX + i * TILE_SIZE/4, screenY + TILE_SIZE/2 - 15, 5, 30);
+      }
+      break;
+      
+    case TILE_TYPES.FENCE_VERTICAL:
+      ctx.fillStyle = '#228B22';
+      ctx.fillRect(screenX, screenY, TILE_SIZE, TILE_SIZE);
+      // Draw vertical fence
+      ctx.fillStyle = '#8B4513'; // Brown wood color
+      ctx.fillRect(screenX + TILE_SIZE/2 - 5, screenY, 10, TILE_SIZE);
+      // Fence posts
+      for (let i = 0; i < 4; i++) {
+        ctx.fillRect(screenX + TILE_SIZE/2 - 15, screenY + i * TILE_SIZE/4, 30, 5);
+      }
+      break;
+      
+    case TILE_TYPES.FENCE_CORNER_TOP_LEFT:
+      ctx.fillStyle = '#228B22';
+      ctx.fillRect(screenX, screenY, TILE_SIZE, TILE_SIZE);
+      // Draw corner fence
+      ctx.fillStyle = '#8B4513';
+      ctx.fillRect(screenX + TILE_SIZE/2 - 5, screenY + TILE_SIZE/2, 10, TILE_SIZE/2); // Vertical part
+      ctx.fillRect(screenX + TILE_SIZE/2, screenY + TILE_SIZE/2 - 5, TILE_SIZE/2, 10); // Horizontal part
+      // Corner post
+      ctx.fillRect(screenX + TILE_SIZE/2 - 15, screenY + TILE_SIZE/2 - 15, 30, 30);
+      break;
+      
+    case TILE_TYPES.FENCE_CORNER_TOP_RIGHT:
+      ctx.fillStyle = '#228B22';
+      ctx.fillRect(screenX, screenY, TILE_SIZE, TILE_SIZE);
+      // Draw corner fence
+      ctx.fillStyle = '#8B4513';
+      ctx.fillRect(screenX + TILE_SIZE/2 - 5, screenY + TILE_SIZE/2, 10, TILE_SIZE/2); // Vertical part
+      ctx.fillRect(screenX, screenY + TILE_SIZE/2 - 5, TILE_SIZE/2, 10); // Horizontal part
+      // Corner post
+      ctx.fillRect(screenX + TILE_SIZE/2 - 15, screenY + TILE_SIZE/2 - 15, 30, 30);
+      break;
+      
+    case TILE_TYPES.FENCE_CORNER_BOTTOM_LEFT:
+      ctx.fillStyle = '#228B22';
+      ctx.fillRect(screenX, screenY, TILE_SIZE, TILE_SIZE);
+      // Draw corner fence
+      ctx.fillStyle = '#8B4513';
+      ctx.fillRect(screenX + TILE_SIZE/2 - 5, screenY, 10, TILE_SIZE/2); // Vertical part
+      ctx.fillRect(screenX + TILE_SIZE/2, screenY + TILE_SIZE/2 - 5, TILE_SIZE/2, 10); // Horizontal part
+      // Corner post
+      ctx.fillRect(screenX + TILE_SIZE/2 - 15, screenY + TILE_SIZE/2 - 15, 30, 30);
+      break;
+      
+    case TILE_TYPES.FENCE_CORNER_BOTTOM_RIGHT:
+      ctx.fillStyle = '#228B22';
+      ctx.fillRect(screenX, screenY, TILE_SIZE, TILE_SIZE);
+      // Draw corner fence
+      ctx.fillStyle = '#8B4513';
+      ctx.fillRect(screenX + TILE_SIZE/2 - 5, screenY, 10, TILE_SIZE/2); // Vertical part
+      ctx.fillRect(screenX, screenY + TILE_SIZE/2 - 5, TILE_SIZE/2, 10); // Horizontal part
+      // Corner post
+      ctx.fillRect(screenX + TILE_SIZE/2 - 15, screenY + TILE_SIZE/2 - 15, 30, 30);
+      break;
+      
+    case TILE_TYPES.FENCE_GATE:
+      ctx.fillStyle = '#228B22';
+      ctx.fillRect(screenX, screenY, TILE_SIZE, TILE_SIZE);
+      // Draw gate (open space in fence)
+      ctx.fillStyle = '#8B4513';
+      ctx.fillRect(screenX + TILE_SIZE/2 - 20, screenY + TILE_SIZE/2 - 5, 40, 10);
+      break;
+      
+    default:
+      ctx.fillStyle = '#333';
+      ctx.fillRect(Math.floor(screenX), Math.floor(screenY), TILE_SIZE, TILE_SIZE);
+  }
+  
+  ctx.restore();
+}
+
+// RENDER COINS
+function drawCoins() {
+  for (const c of coins) {
+    if (c.collected || !zonesUnlocked[c.zone - 1]) continue;
+    const sx = c.x - camera.x;
+    const sy = c.y - camera.y;
+    // skip if offscreen
+    if (sx + COIN_RADIUS < 0 || sx - COIN_RADIUS > canvas.width || sy + COIN_RADIUS < 0 || sy - COIN_RADIUS > canvas.height) continue;
+
+    ctx.save();
+    
+    // Highlight the next coin to collect
+    if (c.id === nextCoinId) {
+      // Draw glow effect for the next coin
+      ctx.shadowColor = '#ffd700';
+      ctx.shadowBlur = 15;
+    }
+    
+    // coin body
+    ctx.beginPath();
+    ctx.fillStyle = c.id === nextCoinId ? '#ffaa00' : '#ffd700';
+    ctx.arc(sx, sy, COIN_RADIUS, 0, Math.PI*2);
+    ctx.fill();
+    
+    // coin rim
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#b8860b';
+    ctx.stroke();
+    
+    // number
+    ctx.fillStyle = '#222';
+    ctx.font = '19px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(c.id, sx, sy + 1);
+    
+    ctx.restore();
+  }
+}
+
+// RENDER PLAYER
+function drawPlayer() {
+  const sx = player.x - camera.x;
+  const sy = player.y - camera.y;
+
+  // shadow
+  ctx.beginPath();
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.ellipse(sx, sy + player.radius + 8, player.radius * 1.2, player.radius * 0.6, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // body
+  ctx.beginPath();
+  ctx.fillStyle = player.color;
+  ctx.arc(sx, sy, player.radius, 0, Math.PI * 2);
+  ctx.fill();
+
+  // border
+  ctx.beginPath();
+  ctx.strokeStyle = selectedCharacter.borderColor;
+  ctx.lineWidth = 2;
+  ctx.arc(sx, sy, player.radius, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Character emoji/face
+  ctx.font = '20px Arial';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(selectedCharacter.emoji, sx, sy);
+}
+
+// Check if a tile is a fence (blocks movement)
+function isFenceTile(tileType) {
+  return [
+    TILE_TYPES.FENCE_HORIZONTAL,
+    TILE_TYPES.FENCE_VERTICAL,
+    TILE_TYPES.FENCE_CORNER_TOP_LEFT,
+    TILE_TYPES.FENCE_CORNER_TOP_RIGHT,
+    TILE_TYPES.FENCE_CORNER_BOTTOM_LEFT,
+    TILE_TYPES.FENCE_CORNER_BOTTOM_RIGHT
+  ].includes(tileType);
+}
+
+// Check if a position is blocked by a fence
+function isPositionBlocked(x, y) {
+  const tileX = Math.floor(x / TILE_SIZE);
+  const tileY = Math.floor(y / TILE_SIZE);
+  
+  if (tileX < 0 || tileX >= WORLD_TILES_X || tileY < 0 || tileY >= WORLD_TILES_Y) {
+    return true; // Block if outside world
+  }
+  
+  const tileType = tileMap[tileY][tileX];
+  
+  // If the tile is a fence and the zone isn't unlocked, block movement
+  if (isFenceTile(tileType)) {
+    // Determine which zone this fence belongs to
+    const midX = Math.floor(WORLD_TILES_X / 2);
+    const midY = Math.floor(WORLD_TILES_Y / 2);
+    
+    if (tileY < midY && tileX > midX) { // Zone 2 (top-right)
+      return !zonesUnlocked[1]; // Block if zone 2 not unlocked
+    } else if (tileY > midY && tileX < midX) { // Zone 3 (bottom-left)
+      return !zonesUnlocked[2]; // Block if zone 3 not unlocked
+    } else if (tileY > midY && tileX > midX) { // Zone 4 (bottom-right)
+      return !zonesUnlocked[3]; // Block if zone 4 not unlocked
+    }
+    
+    return true; // Block all other fences
+  }
+  
+  return false;
+}
+
+// Get movement speed multiplier based on tile
+function getTileSpeedMultiplier(tileType) {
+  switch (tileType) {
+    case TILE_TYPES.ROAD_HORIZONTAL:
+    case TILE_TYPES.ROAD_VERTICAL:
+    case TILE_TYPES.ROAD_CROSS:
+      return 1.3; // Faster on roads
+    case TILE_TYPES.GRASS:
+    default:
+      return 1.0; // Normal speed on grass
+  }
+}
+
+// Get tile at world position
+function getTileAt(worldX, worldY) {
+  const tileX = Math.floor(worldX / TILE_SIZE);
+  const tileY = Math.floor(worldY / TILE_SIZE);
+  if (tileX < 0 || tileX >= WORLD_TILES_X || tileY < 0 || tileY >= WORLD_TILES_Y) {
+    return TILE_TYPES.GRASS;
+  }
+  return tileMap[tileY][tileX];
+}
+
+// Function to determine which area the player is in
+function getPlayerArea() {
+  const midX = Math.floor(WORLD_TILES_X / 2);
+  const midY = Math.floor(WORLD_TILES_Y / 2);
+  const playerTileX = Math.floor(player.x / TILE_SIZE);
+  const playerTileY = Math.floor(player.y / TILE_SIZE);
+  
+  if (playerTileX < midX && playerTileY < midY) return "Top Left (No Fence)";
+  if (playerTileX > midX && playerTileY < midY) return "Top Right (Fenced)";
+  if (playerTileX < midX && playerTileY > midY) return "Bottom Left (Fenced)";
+  if (playerTileX > midX && playerTileY > midY) return "Bottom Right (Fenced)";
+  return "On Road";
+}
+
+// Show notification
+function showNotification(message) {
+  notification.textContent = message;
+  notification.style.opacity = '1';
+  
+  setTimeout(() => {
+    notification.style.opacity = '0';
+  }, 3000);
+}
+
+// Check if all coins in a zone are collected
+function checkZoneCompletion() {
+  for (let zone = 1; zone <= 4; zone++) {
+    const zoneCoins = coins.filter(c => c.zone === zone);
+    const allCollected = zoneCoins.every(c => c.collected);
+    
+    if (allCollected && zone < 4 && !zonesUnlocked[zone]) {
+      // Unlock the next zone
+      zonesUnlocked[zone] = true;
+      showNotification(`Zone ${zone + 1} unlocked!`);
+    }
+  }
+}
+
+// GAME LOOP
+let lastTs = performance.now();
+function loop(ts) {
+  if (gameState !== 'playing') {
+    gameLoopRunning = false;
+    return;
+  }
+  
+  const dt = (ts - lastTs) / 1000;
+  lastTs = ts;
+
+  update(dt);
+  render();
+
+  if (gameLoopRunning) {
+    requestAnimationFrame(loop);
+  }
+}
+
+function update(dt) {
+  // input
+  let dx = 0, dy = 0;
+  
+  // Check for keyboard input
+  if (keys['w'] || keys['arrowup']) dy -= 1;
+  if (keys['s'] || keys['arrowdown']) dy += 1;
+  if (keys['a'] || keys['arrowleft']) dx -= 1;
+  if (keys['d'] || keys['arrowright']) dx += 1;
+  
+  // Check for joystick input (overrides keyboard on mobile)
+  if (joyActive) {
+    dx = joyX / 35; // Normalize joystick movement
+    dy = joyY / 35;
+  }
+
+  // normalize diagonal
+  if (dx !== 0 && dy !== 0) {
+    const inv = 1 / Math.sqrt(2);
+    dx *= inv; dy *= inv;
+  }
+
+  const isRunning = keys['shift'] || boostActive;
+  
+  // Get current tile speed multiplier
+  const currentTile = getTileAt(player.x, player.y);
+  const tileSpeedMultiplier = getTileSpeedMultiplier(currentTile);
+  
+  const speed = player.baseSpeed * tileSpeedMultiplier * (isRunning ? player.runMultiplier : 1);
+
+  // apply movement
+  const nx = player.x + dx * speed * dt;
+  const ny = player.y + dy * speed * dt;
+
+  // Check if new position is blocked by fence
+  const isBlockedX = isPositionBlocked(nx, player.y);
+  const isBlockedY = isPositionBlocked(player.x, ny);
+  
+  // Only update position if not blocked
+  if (!isBlockedX) {
+    player.x = Math.max(player.radius, Math.min(world.width - player.radius, nx));
+  }
+  if (!isBlockedY) {
+    player.y = Math.max(player.radius, Math.min(world.height - player.radius, ny));
+  }
+
+  // collect coins - only the next coin in sequence can be collected
+  for (const c of coins) {
+    if (c.collected || !zonesUnlocked[c.zone - 1] || c.id !== nextCoinId) continue;
+    
+    const dxp = player.x - c.x;
+    const dyp = player.y - c.y;
+    const dist2 = dxp*dxp + dyp*dyp;
+    const minDist = player.radius + COIN_RADIUS;
+    
+    if (dist2 <= minDist*minDist) {
+      c.collected = true;
+      nextCoinId++; // Move to the next coin in sequence
+      
+      // Check if we need to unlock the next zone
+      checkZoneCompletion();
+    }
+  }
+
+  // update camera
+  camera.update();
+
+  // update HUD
+  const currentTileType = Object.keys(TILE_TYPES).find(key => TILE_TYPES[key] === currentTile);
+  const playerArea = getPlayerArea();
+  const collectedCount = coins.filter(c => c.collected).length;
+  hud.innerHTML = `
+  <strong>Character:</strong> ${selectedCharacter.name} (${selectedCharacter.description})<br>
+  <strong>World:</strong> ${world.width} × ${world.height} px<br>
+  <strong>Player:</strong> x=${Math.round(player.x)}, y=${Math.round(player.y)}<br>
+  <strong>Speed:</strong> ${Math.round(speed)} px/s ${isRunning ? '(running)' : '(walking)'}<br>
+  <strong>Current Area:</strong> ${playerArea}<br>
+  <strong>Current Tile:</strong> ${currentTileType}<br>
+  <strong>Coins:</strong> ${collectedCount} / ${coins.length}<br>
+  <strong>Next Coin:</strong> #${nextCoinId}<br>
+  <strong>Unlocked Zones:</strong> ${zonesUnlocked.map((u, i) => u ? i+1 : '').filter(Boolean).join(', ')}
+`;
+}
+
+function render() {
+  // Clear canvas
+  ctx.fillStyle = '#2c3e50';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  
+  // Determine visible tile range
+  const startTileX = Math.floor(camera.x / TILE_SIZE);
+  const endTileX = Math.min(WORLD_TILES_X - 1, Math.floor((camera.x + camera.width) / TILE_SIZE));
+  const startTileY = Math.floor(camera.y / TILE_SIZE);
+  const endTileY = Math.min(WORLD_TILES_Y - 1, Math.floor((camera.y + camera.height) / TILE_SIZE));
+  
+  // Render tiles
+  for (let y = startTileY; y <= endTileY; y++) {
+    for (let x = startTileX; x <= endTileX; x++) {
+      // Skip rendering fences for unlocked zones
+      const tileType = tileMap[y][x];
+      const midX = Math.floor(WORLD_TILES_X / 2);
+      const midY = Math.floor(WORLD_TILES_Y / 2);
+      
+      // Determine which zone this tile belongs to
+      let zone = 0;
+      if (y < midY && x < midX) zone = 1;
+      else if (y < midY && x > midX) zone = 2;
+      else if (y > midY && x < midX) zone = 3;
+      else if (y > midY && x > midX) zone = 4;
+      
+      // Don't render fences for unlocked zones
+      if (isFenceTile(tileType) && zonesUnlocked[zone - 1]) {
+        // Render grass instead of fence for unlocked zones
+        drawTile(TILE_TYPES.GRASS, x, y);
+      } else {
+        drawTile(tileType, x, y);
+      }
+    }
+  }
+  
+  // Render coins (behind player)
+  drawCoins();
+  
+  // Render player
+  drawPlayer();
+  
+  // Draw mini map
+  drawMiniMap();
+}
+
+function drawMiniMap() {
+  const mapSize = 150;
+  const padding = 10;
+  const sx = canvas.width - mapSize - padding;
+  const sy = padding;
+  
+  ctx.save();
+  ctx.globalAlpha = 0.9;
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillRect(sx - 4, sy - 4, mapSize + 8, mapSize + 8);
+
+  // map background
+  ctx.fillStyle = '#123';
+  ctx.fillRect(sx, sy, mapSize, mapSize);
+
+  // scale factor
+  const scale = mapSize / world.width;
+  
+  // Draw tiles on minimap
+  for (let y = 0; y < WORLD_TILES_Y; y++) {
+    for (let x = 0; x < WORLD_TILES_X; x++) {
+      const tileType = tileMap[y][x];
+      const mx = sx + (x * TILE_SIZE) * scale;
+      const my = sy + (y * TILE_SIZE) * scale;
+      const mw = TILE_SIZE * scale;
+      const mh = TILE_SIZE * scale;
+      
+      // Determine which zone this tile belongs to
+      const midX = Math.floor(WORLD_TILES_X / 2);
+      const midY = Math.floor(WORLD_TILES_Y / 2);
+      let zone = 0;
+      if (y < midY && x < midX) zone = 1;
+      else if (y < midY && x > midX) zone = 2;
+      else if (y > midY && x < midX) zone = 3;
+      else if (y > midY && x > midX) zone = 4;
+      
+      // Don't render fences for unlocked zones on minimap
+      if (isFenceTile(tileType) && zonesUnlocked[zone - 1]) {
+        ctx.fillStyle = '#228B22'; // Grass color for unlocked fences
+      } else {
+        switch (tileType) {
+          case TILE_TYPES.GRASS:
+            ctx.fillStyle = '#228B22'; // Same green as main view
+            break;
+          case TILE_TYPES.ROAD_HORIZONTAL:
+          case TILE_TYPES.ROAD_VERTICAL:
+          case TILE_TYPES.ROAD_CROSS:
+            ctx.fillStyle = '#666'; // Roads
+            break;
+          default: // Fences
+            ctx.fillStyle = '#8B4513'; // Brown for fences
+            break;
+        }
+      }
+      ctx.fillRect(mx, my, mw, mh);
+    }
+  }
+
+  // coins on mini map
+  for (const c of coins) {
+    if (c.collected || !zonesUnlocked[c.zone - 1]) continue;
+    ctx.beginPath();
+    const px = sx + c.x * scale;
+    const py = sy + c.y * scale;
+    ctx.fillStyle = c.id === nextCoinId ? '#ffaa00' : '#ffd700';
+    ctx.arc(px, py, 2, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  // player on mini map
+  ctx.beginPath();
+  ctx.fillStyle = player.color;
+  const px = sx + player.x * scale;
+  const py = sy + player.y * scale;
+  ctx.arc(px, py, Math.max(3, player.radius * scale), 0, Math.PI*2);
+  ctx.fill();
+
+  // viewport rectangle
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(sx + camera.x * scale, sy + camera.y * scale, camera.width * scale, camera.height * scale);
+
+  ctx.restore();
+}
+
+// start
+// Menu functions
+function createCharacterMenu() {
+  const menuHTML = `
+    <div class="character-menu" id="characterMenu">
+      <div class="menu-title">Chọn Nhân Vật</div>
+      <div class="character-grid" id="characterGrid">
+        ${CHARACTERS.map(char => `
+          <div class="character-card" data-character="${char.id}">
+            <div class="character-preview" style="background: ${char.color}; border: 2px solid ${char.borderColor};">
+              ${char.emoji}
+            </div>
+            <div class="character-name">${char.name}</div>
+          </div>
+        `).join('')}
+      </div>
+      <button class="start-btn" id="startGameBtn">Bắt Đầu Chơi</button>
+    </div>
+  `;
+  
+  document.body.insertAdjacentHTML('beforeend', menuHTML);
+  setupMenuEvents();
+}
+
+function setupMenuEvents() {
+  const cards = document.querySelectorAll('.character-card');
+  const startBtn = document.getElementById('startGameBtn');
+  
+  // Select first character by default
+  cards[0].classList.add('selected');
+  
+  cards.forEach(card => {
+    card.addEventListener('click', () => {
+      // Remove selected class from all cards
+      cards.forEach(c => c.classList.remove('selected'));
+      // Add selected class to clicked card
+      card.classList.add('selected');
+      
+      // Update selected character
+      const charId = card.dataset.character;
+      selectedCharacter = CHARACTERS.find(char => char.id === charId);
+      
+      // Update player properties
+      player.color = selectedCharacter.color;
+      player.baseSpeed = selectedCharacter.speed;
+    });
+  });
+  
+  startBtn.addEventListener('click', () => {
+    startGame();
+  });
+}
+
+function startGame() {
+  // Hide menu
+  const menu = document.getElementById('characterMenu');
+  if (menu) {
+    menu.style.display = 'none';
+  }
+  
+  // Set game state
+  gameState = 'playing';
+  
+  // Apply selected character properties
+  player.color = selectedCharacter.color;
+  player.baseSpeed = selectedCharacter.speed;
+  
+  // Reset game state
+  resetGameState();
+  
+  // Setup mobile controls
+  setupMobileControls();
+  
+  // Start game loop if not already running
+  if (!gameLoopRunning) {
+    gameLoopRunning = true;
+    requestAnimationFrame(loop);
+  }
+}
+
+function resetGameState() {
+  // Reset player position
+  player.x = world.width / 4;
+  player.y = world.height / 4;
+  
+  // Reset coins
+  createCoins();
+  
+  // Reset zones
+  currentZone = 1;
+  zonesUnlocked = [true, false, false, false];
+  nextCoinId = 1;
+  
+  // Update camera
+  camera.update();
+}
+
+// Initialize the game
+createCharacterMenu();
+
+// handle resize
+window.addEventListener('resize', () => {
+  const newW = Math.min(window.innerWidth - 40, 900);
+  const newH = Math.min(window.innerHeight - 80, 600);
+  canvas.width = newW;
+  canvas.height = newH;
+  camera.width = canvas.width;
+  camera.height = canvas.height;
+  camera.update();
+});
+</script>
+</body>
+</html>

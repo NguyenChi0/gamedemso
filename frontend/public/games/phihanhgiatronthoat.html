@@ -13,6 +13,7 @@
       height: 100vh; 
       background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
       font-family: 'Arial', sans-serif;
+      overflow: hidden;
     }
     #game-container {
       position: relative;
@@ -22,7 +23,7 @@
       border-radius: 10px;
       overflow: hidden;
       box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-      background: #000;
+      background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
     }
     canvas { 
       display: block; 
@@ -57,6 +58,22 @@
     .instruction-line {
       margin-bottom: 3px;
     }
+    #level-transition {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      color: white;
+      font-size: 36px;
+      z-index: 100;
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -65,11 +82,17 @@
       <div class="ui-item">🏆 Điểm: <span id="score">0</span></div>
       <div class="ui-item">🪙 Xu: <span id="coinsCollected">0/10</span></div>
       <div class="ui-item">🎯 Tiếp theo: <span id="nextCoin">1</span></div>
+      <div class="ui-item">🚀 Cấp độ: <span id="level">1</span></div>
     </div>
     <div id="instructions">
       <div class="instruction-line">⬅️ ➡️ Di chuyển</div>
       <div class="instruction-line">🚀 SPACE Bay</div>
       <div class="instruction-line">🔄 R Chơi lại</div>
+    </div>
+    <div id="level-transition">
+      <h2>Chúc mừng!</h2>
+      <p>Bạn đã hoàn thành cấp độ <span id="current-level">1</span></p>
+      <p>Chuẩn bị cho cấp độ tiếp theo...</p>
     </div>
   </div>
 
@@ -89,23 +112,23 @@
     let gameWon = false;
     let stars = [];
     let gameTime = 0;
+    let currentLevel = 1;
+    let coinsPerLevel = 10;
+    let isLevelTransition = false;
+    let transitionTimer = 0;
     let astronautImg;
 
     function preload() {
-      astronautImg = loadImage('phihanhgia.png');
-    }
+  astronautImg = loadImage("phihanhgia3.png");
+}
+
+
 
     function setup() {
       let canvas = createCanvas(800, 600);
       canvas.parent('game-container');
       
-      player = { 
-        x: 50, 
-        y: 500, 
-        size: 40, 
-        vx: 0, 
-        vy: 0 
-      };
+      resetGame();
       
       // Tạo các ngôi sao nền
       for (let i = 0; i < 100; i++) {
@@ -116,6 +139,16 @@
           brightness: random(100, 255)
         });
       }
+    }
+
+    function initializeLevel() {
+      player = { 
+        x: 50, 
+        y: 500, 
+        size: 40, 
+        vx: 0, 
+        vy: 0 
+      };
       
       // Tạo các bậc thang với màu sắc gradient
       platforms = [
@@ -127,6 +160,10 @@
         { x: 300, y: 50, w: 150, h: 20, color: [200, 100, 50] }
       ];
       
+      // Tính toán giá trị xu cho cấp độ hiện tại
+      let startValue = (currentLevel - 1) * coinsPerLevel + 1;
+      let endValue = currentLevel * coinsPerLevel;
+      
       // Vị trí các đồng xu
       let coinPositions = [
         { x: 350, y: 20 }, { x: 150, y: 420 }, { x: 250, y: 420 },
@@ -136,7 +173,7 @@
       ];
       
       // Gán giá trị ngẫu nhiên cho các đồng xu
-      let values = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+      let values = Array.from({length: coinsPerLevel}, (_, i) => startValue + i);
       for (let i = values.length - 1; i > 0; i--) {
         let j = Math.floor(Math.random() * (i + 1));
         [values[i], values[j]] = [values[j], values[i]];
@@ -157,12 +194,24 @@
         active: false,
         pulse: 0
       };
+      
+      // Reset trạng thái game
+      nextCoinToCollect = startValue;
+      gameLost = false;
+      gameWon = false;
+      isLevelTransition = false;
+      transitionTimer = 0;
     }
 
     function draw() {
+      if (isLevelTransition) {
+        drawLevelTransition();
+        return;
+      }
+      
       gameTime++;
       
-      // Vẽ background gradient
+      // Vẽ background gradient - ĐÃ SỬA LỖI Ở ĐÂY
       drawBackground();
       
       // Vẽ các ngôi sao
@@ -199,11 +248,36 @@
     }
 
     function drawBackground() {
-      for (let i = 0; i <= height; i++) {
-        let inter = map(i, 0, height, 0, 1);
-        let c = lerpColor(color(10, 10, 30), color(30, 30, 80), inter);
-        stroke(c);
-        line(0, i, width, i);
+      // Sử dụng gradient từ CSS thay vì vẽ từng dòng
+      clear();
+      push();
+      // Vẽ nền gradient giống với CSS
+      drawingContext.fillStyle = 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)';
+      rect(0, 0, width, height);
+      pop();
+    }
+
+    function drawLevelTransition() {
+      background(0, 0, 0, 200);
+      
+      fill(255, 255, 0);
+      textSize(36);
+      textAlign(CENTER, CENTER);
+      textStyle(BOLD);
+      text(`🎉 CẤP ĐỘ ${currentLevel - 1} HOÀN THÀNH! 🎉`, width/2, height/2 - 40);
+      
+      fill(255);
+      textSize(24);
+      text(`Chuẩn bị cho cấp độ ${currentLevel}...`, width/2, height/2);
+      
+      textSize(18);
+      text(`Điểm số: ${score}`, width/2, height/2 + 40);
+      
+      // Đếm ngược để chuyển cấp độ
+      transitionTimer++;
+      if (transitionTimer > 180) { // 3 giây với 60fps
+        isLevelTransition = false;
+        initializeLevel();
       }
     }
 
@@ -337,7 +411,7 @@
             nextCoinToCollect++;
             createCollectEffect(c.x, c.y);
             // Kích hoạt cổng khi thu thập đủ xu
-            if (nextCoinToCollect > 10) {
+            if (nextCoinToCollect > currentLevel * coinsPerLevel) {
               portal.active = true;
             }
           } else if (c.value > nextCoinToCollect) {
@@ -348,17 +422,23 @@
       
       // Kiểm tra va chạm với cổng
       if (portal.active && dist(player.x, player.y, portal.x, portal.y) < (player.size + portal.size)/2) {
-        gameWon = true;
+        if (currentLevel < 5) { // Giới hạn 5 cấp độ, bạn có thể thay đổi
+          currentLevel++;
+          isLevelTransition = true;
+          transitionTimer = 0;
+        } else {
+          gameWon = true;
+        }
       }
     }
 
     function drawPlayer() {
-      push();
-      translate(player.x, player.y);
-      imageMode(CENTER);
-      image(astronautImg, 0, 0, player.size, player.size);
-      pop();
-    }
+  push();
+  imageMode(CENTER);
+  image(astronautImg, player.x, player.y, player.size, player.size);
+  pop();
+}
+
 
     function createFireParticles() {
       for (let i = 0; i < random(3, 6); i++) {
@@ -444,8 +524,10 @@
 
     function updateUI() {
       document.getElementById('score').textContent = score;
-      document.getElementById('coinsCollected').textContent = `${nextCoinToCollect - 1}/10`;
-      document.getElementById('nextCoin').textContent = nextCoinToCollect <= 10 ? nextCoinToCollect : 'Tìm cổng!';
+      document.getElementById('coinsCollected').textContent = `${nextCoinToCollect - (currentLevel - 1) * coinsPerLevel - 1}/${coinsPerLevel}`;
+      document.getElementById('nextCoin').textContent = nextCoinToCollect <= currentLevel * coinsPerLevel ? nextCoinToCollect : 'Tìm cổng!';
+      document.getElementById('level').textContent = currentLevel;
+      document.getElementById('current-level').textContent = currentLevel - 1;
     }
 
     function drawWinScreen() {
@@ -474,10 +556,10 @@
       
       fill(255);
       textSize(24);
-      text("BẠN ĐÃ VÀO CỔNG!", width/2, height/2);
+      text("BẠN ĐÃ HOÀN THÀNH TẤT CẢ CẤP ĐỘ!", width/2, height/2);
       
       textSize(18);
-      text(`Điểm số: ${score}`, width/2, height/2 + 40);
+      text(`Điểm số cuối cùng: ${score}`, width/2, height/2 + 40);
       
       noLoop();
     }
@@ -517,29 +599,11 @@
     }
 
     function resetGame() {
-      player = { x: 50, y: 500, size: 40, vx: 0, vy: 0 };
-      particles = [];
+      currentLevel = 1;
       score = 0;
-      nextCoinToCollect = 1;
-      gameLost = false;
-      gameWon = false;
+      particles = [];
       gameTime = 0;
-      
-      let values = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-      for (let i = values.length - 1; i > 0; i--) {
-        let j = Math.floor(Math.random() * (i + 1));
-        [values[i], values[j]] = [values[j], values[i]];
-      }
-      
-      for (let i = 0; i < coins.length; i++) {
-        coins[i].collected = false;
-        coins[i].value = values[i];
-        coins[i].pulse = 0;
-      }
-      
-      // Reset cổng
-      portal.active = false;
-      portal.pulse = 0;
+      initializeLevel();
     }
 
     window.addEventListener('keydown', function(e) {

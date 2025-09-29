@@ -1,0 +1,645 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Bãi Đỗ Xe 2D - 20 Xe</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;600;700&display=swap');
+    
+    * {
+      box-sizing: border-box;
+      font-family: 'Roboto', sans-serif;
+    }
+    
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: linear-gradient(180deg, #87CEEB 0%, #98FB98 100%);
+      color: #333;
+      overflow: hidden;
+    }
+    
+    .hud {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      right: 20px;
+      z-index: 1000;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(255,255,255,0.95);
+      backdrop-filter: blur(10px);
+      padding: 15px 25px;
+      border-radius: 15px;
+      box-shadow: 0 5px 25px rgba(0,0,0,0.1);
+    }
+    
+    .hud h1 {
+      margin: 0;
+      font-size: 24px;
+      color: #2c3e50;
+      font-weight: 700;
+    }
+    
+    .stats {
+      display: flex;
+      gap: 20px;
+      align-items: center;
+    }
+    
+    .stat {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      padding: 8px 15px;
+      border-radius: 20px;
+      font-weight: 600;
+      font-size: 14px;
+    }
+    
+    .controls {
+      display: flex;
+      gap: 10px;
+    }
+    
+    .btn {
+      background: linear-gradient(135deg, #4CAF50, #45a049);
+      border: none;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 25px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s ease;
+    }
+    
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    }
+    
+    .btn.secondary {
+      background: linear-gradient(135deg, #2196F3, #1976D2);
+    }
+    
+    .parking-lot {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      background: linear-gradient(180deg, #87CEEB 0%, #98FB98 100%);
+      overflow: hidden;
+    }
+    
+    .ground {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 800px;
+      height: 320px;
+      background: #34495e;
+      border-radius: 10px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    }
+    
+    .parking-container {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 800px;
+      height: 320px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 10px;
+      z-index: 10;
+    }
+    
+    .parking-row {
+      display: grid;
+      grid-template-columns: repeat(10, 1fr);
+      gap: 5px;
+      height: 145px;
+    }
+    
+    .parking-space {
+      background: rgba(255,255,255,0.9);
+      border: 2px solid #3498db;
+      border-radius: 5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: bold;
+      color: #2c3e50;
+      position: relative;
+      transition: all 0.3s ease;
+    }
+    
+    .parking-space::before {
+      display:none;
+    }
+    
+    .parking-space.filled {
+      background: rgba(46,204,113,0.8);
+      border-color: #27ae60;
+    }
+    
+    .car {
+      position: absolute;
+      width: 60px;
+      height: 140px;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.5s ease;
+      z-index: 100;
+      border-radius: 5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 16px;
+      color: white;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
+      box-shadow: none;
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
+      border: none;
+    }
+    
+    .car:hover {
+      transform: scale(1.1);
+      box-shadow: 0 5px 15px rgba(0,0,0,0.4);
+    }
+    
+    .car::after {
+      content: attr(data-num);
+      position: absolute;
+      bottom: -20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: white;
+      color: #2c3e50;
+      padding: 2px 6px;
+      border-radius: 8px;
+      font-weight: bold;
+      font-size: 20px;
+      border: 1px solid #3498db;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+    
+    /* Car images for cars 1-10 */
+    .car-1 { background-image: url('car1.png'); }
+    .car-2 { background-image: url('car2.png'); }
+    .car-3 { background-image: url('car3.png'); }
+    .car-4 { background-image: url('car4.png'); }
+    .car-5 { background-image: url('car5.png'); }
+    .car-6 { background-image: url('car6.png'); }
+    .car-7 { background-image: url('car7.png'); }
+    .car-8 { background-image: url('car8.png'); }
+    .car-9 { background-image: url('car9.png'); }
+    .car-10 { background-image: url('car10.png'); }
+    
+    /* Car images for cars 11-20 (cycling through designs) */
+    .car-11 { background-image: url('car1.png'); }
+    .car-12 { background-image: url('car2.png'); }
+    .car-13 { background-image: url('car3.png'); }
+    .car-14 { background-image: url('car4.png'); }
+    .car-15 { background-image: url('car5.png'); }
+    .car-16 { background-image: url('car6.png'); }
+    .car-17 { background-image: url('car7.png'); }
+    .car-18 { background-image: url('car8.png'); }
+    .car-19 { background-image: url('car9.png'); }
+    .car-20 { background-image: url('car10.png'); }
+    
+    @keyframes glow {
+      0%, 100% { 
+        box-shadow: 0 3px 8px rgba(0,0,0,0.3), 0 0 0 rgba(255,255,255,0.7);
+      }
+      50% { 
+        box-shadow: 0 3px 8px rgba(0,0,0,0.3), 0 0 20px rgba(255,255,255,0.8);
+      }
+    }
+    
+    .car.wrong {
+      animation: shake 0.5s ease-in-out;
+    }
+    
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-5px); }
+      50% { transform: translateX(5px); }
+      75% { transform: translateX(-3px); }
+    }
+    
+    .car.parked {
+      pointer-events: none;
+      z-index: 50;
+    }
+    
+    .success-modal {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      padding: 40px;
+      border-radius: 20px;
+      text-align: center;
+      font-size: 24px;
+      font-weight: 700;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+      z-index: 2000;
+      opacity: 0;
+      transform: translate(-50%, -50%) scale(0);
+      transition: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    }
+    
+    .success-modal.show {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+    
+    .buildings {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 40%;
+      z-index: -1;
+    }
+    
+    .building {
+      position: absolute;
+      bottom: 0;
+      background: #34495e;
+      border-radius: 5px 5px 0 0;
+      border: 2px solid #2c3e50;
+    }
+    
+    .building:nth-child(1) { left: 5%; width: 60px; height: 100px; }
+    .building:nth-child(2) { left: 15%; width: 50px; height: 80px; }
+    .building:nth-child(3) { left: 25%; width: 80px; height: 120px; }
+    .building:nth-child(4) { right: 20%; width: 55px; height: 90px; }
+    .building:nth-child(5) { right: 10%; width: 70px; height: 110px; }
+    .building:nth-child(6) { right: 2%; width: 45px; height: 70px; }
+    
+    .clouds {
+      position: absolute;
+      top: 10%;
+      width: 100%;
+      height: 30%;
+      overflow: hidden;
+      z-index: -2;
+    }
+    
+    .cloud {
+      position: absolute;
+      background: rgba(255,255,255,0.8);
+      border-radius: 20px;
+      animation: float 25s infinite linear;
+    }
+    
+    .cloud:nth-child(1) {
+      width: 50px; height: 25px;
+      top: 20%; left: -60px;
+      animation-delay: -5s;
+    }
+    
+    .cloud:nth-child(2) {
+      width: 70px; height: 35px;
+      top: 10%; left: -80px;
+      animation-delay: -12s;
+    }
+    
+    .cloud:nth-child(3) {
+      width: 60px; height: 30px;
+      top: 30%; left: -70px;
+      animation-delay: -18s;
+    }
+    
+    @keyframes float {
+      0% { transform: translateX(-100px); }
+      100% { transform: translateX(calc(100vw + 100px)); }
+    }
+    
+    .instructions {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.8);
+      color: white;
+      padding: 10px 20px;
+      border-radius: 25px;
+      font-size: 14px;
+      z-index: 1000;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="hud">
+    <h1>🏢 Parking King - 20 Cars</h1>
+    <div class="stats">
+      <div class="stat">🎯 Xe: <span id="target">1</span></div>
+      <div class="stat">⏱️ <span id="timer">0.000</span>s</div>
+      <div class="stat">❌ <span id="mistakes">0</span></div>
+    </div>
+    <div class="controls">
+      <button class="btn" id="btnRestart">🔄 Chơi lại</button>
+      <button class="btn secondary" id="btnShuffle">🔀 Xáo trộn</button>
+    </div>
+  </div>
+
+  <div class="parking-lot">
+    <!-- Clouds -->
+    <div class="clouds">
+      <div class="cloud"></div>
+      <div class="cloud"></div>
+      <div class="cloud"></div>
+    </div>
+    
+    <!-- Buildings -->
+    <div class="buildings">
+      <div class="building"></div>
+      <div class="building"></div>
+      <div class="building"></div>
+      <div class="building"></div>
+      <div class="building"></div>
+      <div class="building"></div>
+    </div>
+    
+    <!-- Ground -->
+    <div class="ground"></div>
+    
+    <!-- Parking spaces container -->
+    <div class="parking-container" id="parkingContainer">
+      <div class="parking-row" id="parkingRow1"></div>
+      <div class="parking-row" id="parkingRow2"></div>
+    </div>
+  </div>
+
+  <div class="instructions">
+    🚗 Đỗ xe theo thứ tự 1→20 | Phím: 1-9, 0 (xe 10), Q-I (xe 11-19), P (xe 20) | Click chuột hoặc chạm màn hình
+  </div>
+
+  <div class="success-modal" id="successModal">
+    🎉 Tuyệt vời! Tất cả xe đã vào bãi!
+  </div>
+
+<script>
+(function(){
+  const parkingLot = document.querySelector('.parking-lot');
+  const parkingRow1 = document.getElementById('parkingRow1');
+  const parkingRow2 = document.getElementById('parkingRow2');
+  const targetEl = document.getElementById('target');
+  const timerEl = document.getElementById('timer');
+  const mistakesEl = document.getElementById('mistakes');
+  const btnRestart = document.getElementById('btnRestart');
+  const btnShuffle = document.getElementById('btnShuffle');
+  const successModal = document.getElementById('successModal');
+
+  let target = 1;
+  let mistakes = 0;
+  let startTime = null;
+  let timerId = null;
+  let cars = [];
+  let spaces = [];
+
+  function rand(min, max){ return Math.floor(Math.random()*(max-min+1))+min }
+
+  function createParkingSpaces(){
+    parkingRow1.innerHTML = '';
+    parkingRow2.innerHTML = '';
+    spaces = [];
+    
+    // Create spaces 1-10 in first row
+    for(let i = 1; i <= 10; i++){
+      const space = document.createElement('div');
+      space.className = 'parking-space';
+      space.dataset.number = i;
+      parkingRow1.appendChild(space);
+      spaces.push(space);
+    }
+    
+    // Create spaces 11-20 in second row
+    for(let i = 11; i <= 20; i++){
+      const space = document.createElement('div');
+      space.className = 'parking-space';
+      space.dataset.number = i;
+      parkingRow2.appendChild(space);
+      spaces.push(space);
+    }
+  }
+
+  function createCars(){
+    // Remove existing cars
+    document.querySelectorAll('.car').forEach(car => car.remove());
+    cars = [];
+    
+    const lotRect = parkingLot.getBoundingClientRect();
+    const used = [];
+    
+    for(let i = 1; i <= 20; i++){
+      const car = document.createElement('div');
+      car.className = `car car-${i}`;
+      car.dataset.num = i;
+      
+      // Position randomly but avoid parking area
+      let x, y, attempts = 0;
+      const carWidth = 60, carHeight = 30;
+      
+      do {
+        x = rand(50, window.innerWidth - carWidth - 50);
+        y = rand(120, window.innerHeight * 0.35); // Avoid parking area
+        attempts++;
+        
+        // Check collision with other cars
+        const collision = used.some(pos => 
+          Math.abs(x - pos.x) < carWidth + 20 && 
+          Math.abs(y - pos.y) < carHeight + 20
+        );
+        
+        if(!collision) break;
+      } while(attempts < 100);
+      
+      used.push({x, y});
+      car.style.left = x + 'px';
+      car.style.top = y + 'px';
+      
+      car.addEventListener('click', onCarClick);
+      car.addEventListener('touchstart', onCarClick, {passive: true});
+      
+      parkingLot.appendChild(car);
+      cars.push(car);
+    }
+    
+    updateNextTarget();
+  }
+
+  function updateNextTarget(){
+    cars.forEach(car => car.classList.remove('next-target'));
+    if(target <= 20){
+      const nextCar = cars.find(car => 
+        Number(car.dataset.num) === target && 
+        !car.classList.contains('parked')
+      );
+      if(nextCar) nextCar.classList.add('next-target');
+    }
+  }
+
+  function onCarClick(e){
+    const car = e.currentTarget;
+    const num = Number(car.dataset.num);
+    
+    if(target === 1 && startTime === null){
+      startTime = performance.now();
+      startTimer();
+    }
+    
+    if(num === target){
+      // Get parking space position
+      const space = spaces[num - 1];
+      const spaceRect = space.getBoundingClientRect();
+      const lotRect = parkingLot.getBoundingClientRect();
+      
+      const targetX = spaceRect.left - lotRect.left + (spaceRect.width - 60) / 2;
+      const targetY = spaceRect.top - lotRect.top + (spaceRect.height - 30) / 2 - 60;
+      
+      // Animate car to parking space
+      car.style.left = targetX + 'px';
+      car.style.top = targetY + 'px';
+      car.style.transform = 'scale(0.8)';
+      
+      setTimeout(() => {
+        car.classList.add('parked');
+        space.classList.add('filled');
+        space.innerHTML = `<div style="font-size: 12px; color: #27ae60; font-weight: bold;">${num}</div>`;
+      }, 500);
+
+      target++;
+      targetEl.textContent = target <= 20 ? target : '✅';
+      updateNextTarget();
+      
+      if(target > 20){
+        stopTimer();
+        const total = ((performance.now() - startTime)/1000).toFixed(3);
+        setTimeout(() => {
+          successModal.innerHTML = `
+            🎉 Xuất sắc!<br>
+            ⏱️ Hoàn thành trong: ${total}s<br>
+            ❌ Số lần sai: ${mistakes}<br>
+            🏆 Bạn là tài xế chuyên nghiệp!
+          `;
+          successModal.classList.add('show');
+          setTimeout(() => successModal.classList.remove('show'), 5000);
+        }, 800);
+      }
+    } else {
+      mistakes++;
+      mistakesEl.textContent = mistakes;
+      car.classList.add('wrong');
+      setTimeout(() => car.classList.remove('wrong'), 500);
+    }
+  }
+
+  function startTimer(){
+    timerId = setInterval(() => {
+      if(startTime === null) return;
+      const elapsed = (performance.now() - startTime) / 1000;
+      timerEl.textContent = elapsed.toFixed(3);
+    }, 50);
+  }
+
+  function stopTimer(){
+    if(timerId) clearInterval(timerId);
+    timerId = null;
+  }
+
+  function resetGame(){
+    stopTimer();
+    startTime = null;
+    target = 1;
+    mistakes = 0;
+    targetEl.textContent = target;
+    timerEl.textContent = '0.000';
+    mistakesEl.textContent = mistakes;
+    successModal.classList.remove('show');
+    
+    createParkingSpaces();
+    setTimeout(createCars, 100);
+  }
+
+  function shuffleCars(){
+    const activeCars = cars.filter(car => !car.classList.contains('parked'));
+    const used = [];
+    
+    activeCars.forEach(car => {
+      let x, y, attempts = 0;
+      const carWidth = 60, carHeight = 30;
+      
+      do {
+        x = rand(50, window.innerWidth - carWidth - 50);
+        y = rand(120, window.innerHeight * 0.35);
+        attempts++;
+        
+        const collision = used.some(pos => 
+          Math.abs(x - pos.x) < carWidth + 20 && 
+          Math.abs(y - pos.y) < carHeight + 20
+        );
+        
+        if(!collision) break;
+      } while(attempts < 100);
+      
+      used.push({x, y});
+      car.style.left = x + 'px';
+      car.style.top = y + 'px';
+    });
+  }
+
+  // Event listeners
+  btnRestart.addEventListener('click', resetGame);
+  btnShuffle.addEventListener('click', shuffleCars);
+
+  // Keyboard controls
+  document.addEventListener('keydown', e => {
+    const k = e.key.toLowerCase();
+    let pressed = null;
+    
+    // Numbers 1-9
+    if(k >= '1' && k <= '9') pressed = Number(k);
+    // 0 for car 10
+    if(k === '0') pressed = 10;
+    
+    // Letters for cars 11-20
+    const letterMap = {
+      'q': 11, 'w': 12, 'e': 13, 'r': 14, 't': 15,
+      'y': 16, 'u': 17, 'i': 18, 'o': 19, 'p': 20
+    };
+    if(letterMap[k]) pressed = letterMap[k];
+    
+    if(pressed !== null){
+      const car = cars.find(c => 
+        Number(c.dataset.num) === pressed && 
+        !c.classList.contains('parked')
+      );
+      if(car) car.click();
+    }
+  });
+
+  // Initialize game
+  resetGame();
+  
+  // Handle window resize
+  window.addEventListener('resize', () => {
+    setTimeout(shuffleCars, 100);
+  });
+})();
+</script>
+</body>
+</html>

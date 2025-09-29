@@ -4,12 +4,80 @@
   <meta charset="UTF-8">
   <title>Jump Counting Game</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.2/p5.min.js"></script>
-  <style> body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; } </style>
+  <style> 
+    body { 
+      margin: 0; 
+      font-family: Arial, sans-serif; 
+      background-color: #3c9aaa; /* nền tím */
+      display: flex;
+      justify-content: center; /* căn giữa ngang */
+      align-items: center;     /* căn giữa dọc */
+      height: 100vh;           /* full màn hình */
+    } 
+    
+    #game-container {
+      position: relative;
+      width: 600px;   /* khớp với canvas */
+      height: 600px;
+    }
+
+    #game-overlay {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background-color: rgba(0, 0, 0, 0.5);
+      color: white;
+      padding: 10px;
+      border-radius: 5px;
+      z-index: 10;
+    }
+    
+    #instructions {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      background-color: rgba(0, 0, 0, 0.5);
+      color: white;
+      padding: 10px;
+      border-radius: 5px;
+      z-index: 10;
+      font-size: 14px;
+    }
+    
+    #checkpoint-message {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: rgba(0, 0, 0, 0.7);
+      color: gold;
+      padding: 20px;
+      border-radius: 10px;
+      z-index: 20;
+      text-align: center;
+      display: none;
+      font-size: 24px;
+      font-weight: bold;
+    }
+  </style>
 </head>
 <body>
+  <div id="game-container">
+    <div id="game-overlay">
+      <h2>Đếm số lên 50</h2>
+      <p>Mức hiện tại: <span id="current-level">1</span>/50</p>
+    </div>
+    
+    <div id="instructions">
+      <p>Nhấp vào các số theo thứ tự từ 1 đến 50. Nhấn R để chơi lại.</p>
+    </div>
+    
+    <div id="checkpoint-message"></div>
+  </div>
+
 <script>
 let player;
-let rows = 10;
+let rows = 50;
 let platforms = [];
 let camY = 0;
 let worldHeight;
@@ -20,93 +88,104 @@ let jumpSpeed = 12;
 let startPlatform;
 let treasurePlatform;
 let gameWon = false;
-let stoneImg, backgroundImg, playerImg, islandImg;
+let stoneImg, backgroundImg, playerImg, islandImg, jumpingImg;
 let bgVideo;
-
+let checkpoints = [];
+let showCheckpointMessage = false;
+let checkpointTimer = 0;
 
 function preload() {
-  stoneImg = loadImage('stone.png');
-  backgroundImg = loadImage('background123.png');
-  playerImg = loadImage('nv.png');
-  islandImg = loadImage('island.png');
+  // Sử dụng ảnh mẫu từ internet thay vì file local
+  stoneImg = loadImage('https://images.unsplash.com/photo-1586348943529-beaae6c28db9?w=150&h=80&fit=crop');
+  backgroundImg = loadImage('https://images.unsplash.com/photo-1501426026826-31c667bdf23d?w=600&h=600&fit=crop');
+  playerImg = loadImage('https://images.unsplash.com/photo-1560807707-8cc77767d783?w=60&h=60&fit=crop&crop=face');
+  jumpingImg = loadImage('https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=60&h=60&fit=crop');
+  islandImg = loadImage('https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=250&h=100&fit=crop');
 }
 
 function setup() {
   createCanvas(600, 600);
 
-// Load video
-  bgVideo = createVideo('songnuoc.mp4');
-  bgVideo.hide(); // Ẩn thẻ video HTML
-  bgVideo.loop(); // Lặp lại video
-  bgVideo.volume(0); // Tắt tiếng nếu không cần
-
-  worldHeight = (rows + 2) * 180; // Tăng khoảng cách giữa các hàng
+  // Tạo video nền giả (thực tế sẽ dùng video của bạn)
+  bgVideo = createVideo('');
+  bgVideo.hide();
+  
+  worldHeight = (rows + 2) * 180;
   generatePlatforms();
+  
+  // Tạo các mốc kiểm tra (mỗi 10 số)
+  for (let i = 1; i <= 5; i++) {
+    checkpoints.push(i * 10);
+  }
 
   player = {
-    x: startPlatform.x + 75, // Điều chỉnh vị trí theo platform lớn hơn
-    y: startPlatform.y - 20, // Giảm vị trí nhân vật xuống 20px
-    size: 60, // Tăng size nhân vật từ 40 lên 60
+    x: startPlatform.x + 75,
+    y: startPlatform.y - 20,
+    size: 60,
     vy: 0,
     isJumping: false,
     targetX: startPlatform.x + 75,
     targetY: startPlatform.y - 20,
     jumpProgress: 0,
-    isAnimating: false
+    isAnimating: false,
+    isJumpingImg: false
   };
 }
 
 function generatePlatforms() {
   platforms = [];
   
-  // Tạo platform bắt đầu (số 0) - to hơn
+  // Tạo platform bắt đầu (số 0)
   startPlatform = {
-    x: width / 2 - 75, // Điều chỉnh vị trí cho platform lớn hơn
-    y: worldHeight - 60, // Tăng chiều cao platform
+    x: width / 2 - 75,
+    y: worldHeight - 60,
     label: 0,
     row: -1,
     isStart: true
   };
   
-  // Tạo các platform cho từng hàng (1-10)
+  // Tạo các platform cho từng hàng (1-50)
   for (let i = 0; i < rows; i++) {
-    let y = worldHeight - (i + 2) * 160; // Tăng khoảng cách
+    let y = worldHeight - (i + 2) * 160;
     let correctAnswer = i + 1;
     
     // Tạo 3 platform nhưng chỉ 1 đúng
     let row = [];
     let wrongAnswers = [];
     
-    // Tạo 2 đáp án sai
-    while (wrongAnswers.length < 2) {
-      let wrong = floor(random(1, 21));
-      if (wrong !== correctAnswer && !wrongAnswers.includes(wrong)) {
-        wrongAnswers.push(wrong);
-      }
-    }
+    // Tạo 2 đáp án sai với giá trị gần đáp án đúng
+    let wrong1 = correctAnswer - 1;
+    let wrong2 = correctAnswer + 1;
+    
+    // Đảm bảo đáp án sai nằm trong khoảng 1-50
+    if (wrong1 < 1) wrong1 = correctAnswer + 2;
+    if (wrong2 > 50) wrong2 = correctAnswer - 2;
+    
+    wrongAnswers.push(wrong1, wrong2);
     
     // Trộn đáp án và đặt vào 3 vị trí
     let answers = [correctAnswer, ...wrongAnswers];
     answers = shuffle(answers);
     
     for (let j = 0; j < 3; j++) {
-      let x = 75 + j * 180; // Điều chỉnh vị trí cho platform lớn hơn
+      let x = 75 + j * 180;
       row.push({ 
         x, 
         y, 
         label: answers[j], 
         row: i,
-        isCorrect: answers[j] === correctAnswer
+        isCorrect: answers[j] === correctAnswer,
+        isCheckpoint: checkpoints.includes(answers[j])
       });
     }
     platforms.push(row);
   }
   
-  // Tạo platform kho báu (số 11) - to hơn
+  // Tạo platform kho báu (số 51)
   treasurePlatform = {
     x: width / 2 - 65,
     y: worldHeight - (rows + 2) * 160,
-    label: 11,
+    label: 51,
     row: rows,
     isTreasure: true
   };
@@ -114,12 +193,14 @@ function generatePlatforms() {
 
 function draw() {
   // Vẽ background
-  if (bgVideo) {
-  image(bgVideo, 0, 0, width, height); // Vẽ video làm nền
-} else {
-  background(135, 206, 235);
-}
-
+  if (backgroundImg) {
+    image(backgroundImg, 0, 0, width, height);
+  } else {
+    background(135, 206, 235);
+  }
+  
+  // Cập nhật UI
+  document.getElementById('current-level').textContent = currentTarget;
   
   updateCamera();
 
@@ -132,7 +213,6 @@ function draw() {
   // Vẽ các platform game
   for (let row of platforms) {
     for (let p of row) {
-      // Chỉ vẽ platform nếu không bị ẩn
       if (!p.isHidden) {
         drawPlatform(p);
       }
@@ -146,12 +226,13 @@ function draw() {
   updatePlayer();
 
   // Vẽ nhân vật
-  if (playerImg) {
+  if (player.isJumpingImg && jumpingImg) {
+    image(jumpingImg, player.x - player.size/2, player.y - player.size/2, player.size, player.size);
+  } else if (playerImg) {
     tint(isFalling ? color(255, 100, 100) : color(255, 255, 255));
     image(playerImg, player.x - player.size/2, player.y - player.size/2, player.size, player.size);
     noTint();
   } else {
-    // Fallback nếu không load được ảnh
     fill(isFalling ? color(255, 100, 100) : color(100, 255, 100));
     stroke(50);
     strokeWeight(2);
@@ -161,43 +242,57 @@ function draw() {
   pop();
 
   applyGravity();
+  
+  // Hiển thị thông báo mốc kiểm tra nếu cần
+  if (showCheckpointMessage) {
+    checkpointTimer++;
+    if (checkpointTimer > 120) { // Hiển thị trong 2 giây (120 frame)
+      showCheckpointMessage = false;
+      checkpointTimer = 0;
+      document.getElementById('checkpoint-message').style.display = 'none';
+    }
+  }
 }
 
 function drawPlatform(p) {
+  // Vẽ nền platform bằng ảnh stone
   if (stoneImg) {
-    image(stoneImg, p.x, p.y, 150, 70); // Tăng size platform từ 100x30 lên 150x40
+    image(stoneImg, p.x, p.y, 150, 80);
   } else {
-    // Fallback nếu không load được ảnh
-    if (p.isStart) {
-      fill(139, 69, 19); // Brown for start
+    // Fallback nếu không có ảnh
+    if (p.isCheckpoint) {
+      fill(255, 215, 0);
+      stroke(218, 165, 32);
+    } else if (p.isStart) {
+      fill(139, 69, 19);
       stroke(101, 67, 33);
     } else {
-      fill(150, 150, 150); // Gray
+      fill(150, 150, 150);
+      stroke(100, 100, 100);
     }
     strokeWeight(2);
-    rect(p.x, p.y, 150, 40, 8); // Tăng size platform
+    rect(p.x, p.y, 150, 80, 8);
   }
   
   // Vẽ số
-  fill(255);
+  fill(p.isCheckpoint ? 0 : 255);
   stroke(0);
   strokeWeight(1);
   textAlign(CENTER, CENTER);
-  textSize(24); // Tăng size text từ 20 lên 24
+  textSize(24);
   textStyle(BOLD);
-  text(p.label, p.x + 75, p.y + 20); // Điều chỉnh vị trí text
+  text(p.label, p.x + 75, p.y + 40);
 }
 
 function drawTreasure(p) {
-  // Vẽ kho báu bằng hình ảnh island.png
+  // Vẽ kho báu
   if (islandImg) {
-    image(islandImg, p.x-35, p.y-40, 250, 100); // Sử dụng hình ảnh island.png
+    image(islandImg, p.x-35, p.y-70, 250, 100);
   } else {
-    // Fallback nếu không load được ảnh island.png
-    fill(255, 215, 0); // Gold
+    fill(255, 215, 0);
     stroke(218, 165, 32);
     strokeWeight(4);
-    rect(p.x, p.y, 250, 100, 20); // Tăng size
+    rect(p.x, p.y, 250, 100, 20);
   }
   
   // Vẽ biểu tượng kho báu
@@ -205,41 +300,29 @@ function drawTreasure(p) {
   stroke(0);
   strokeWeight(1);
   textAlign(CENTER, CENTER);
-  textSize(28); // Tăng size icon
-  text("💎", p.x + 75, p.y + 10); // Điều chỉnh vị trí
+  textSize(28);
+  text("💎", p.x + 125, p.y + 50);
 }
 
 function updatePlayer() {
   if (player.isAnimating) {
-    player.jumpProgress += 0.02; // Giảm tốc độ animation từ 0.08 xuống 0.04
+    player.jumpProgress += 0.02;
     
     if (player.jumpProgress >= 1) {
       player.jumpProgress = 1;
       player.isAnimating = false;
       player.isJumping = false;
+      player.isJumpingImg = false;
     }
     
-    // Smooth interpolation với easing
     let t = easeInOutQuad(player.jumpProgress);
-    player.x = lerp(player.x, player.targetX, t * 0.15); // Giảm tốc độ di chuyển từ 0.3 xuống 0.15
+    player.x = lerp(player.x, player.targetX, t * 0.15);
     player.y = lerp(player.y, player.targetY, t * 0.15);
   }
 }
 
 function easeInOutQuad(t) {
   return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
-}
-
-function drawUI() {
-  // Background cho UI
-  fill(0, 0, 0, 100);
-  rect(0, 0, width, 60);
-  
-  // Hiển thị điểm
-  fill(255);
-  textAlign(CENTER, CENTER);
-  textSize(18);
-  text(`Điểm: ${currentTarget - 1}/10`, width / 2, 30);
 }
 
 function updateCamera() {
@@ -257,7 +340,10 @@ function applyGravity() {
   // Rơi xuống đáy
   if (player.y > worldHeight + 200) {
     noLoop();
-    // Game over - không có alert
+    // Hiển thị game over không dùng alert
+    document.getElementById('checkpoint-message').textContent = "Game Over! Bạn đã rơi xuống. Nhấn R để chơi lại.";
+    document.getElementById('checkpoint-message').style.display = 'block';
+    showCheckpointMessage = true;
   }
 }
 
@@ -273,11 +359,19 @@ function mousePressed() {
       if (!p.isHidden && isClickInPlatform(mouseXWorld, mouseYWorld, p)) {
         if (p.label === currentTarget) {
           jumpTo(p);
-          // Xóa các đáp án sai trong hàng này
           hideWrongAnswers(p.row);
           currentTarget++;
+          
+          // Kiểm tra nếu đạt mốc
+          if (checkpoints.includes(p.label)) {
+            document.getElementById('checkpoint-message').textContent = `Chúc mừng! Bạn đã đạt mốc ${p.label}!`;
+            document.getElementById('checkpoint-message').style.display = 'block';
+            showCheckpointMessage = true;
+            checkpointTimer = 0;
+          }
+          
           if (currentTarget > rows) {
-            // Kích hoạt kho báu - không có alert
+            // Kích hoạt kho báu
           }
         } else {
           fallDown();
@@ -293,24 +387,26 @@ function mousePressed() {
     setTimeout(() => {
       gameWon = true;
       noLoop();
-      alert("🏆 Chúc mừng! Bạn đã hoàn thành game và tìm được kho báu!");
+      document.getElementById('checkpoint-message').textContent = "🏆 Chúc mừng! Bạn đã hoàn thành game và tìm được kho báu!";
+      document.getElementById('checkpoint-message').style.display = 'block';
     }, 1000);
   }
 }
 
 function isClickInPlatform(mouseX, mouseY, platform) {
   return mouseX >= platform.x && 
-         mouseX <= platform.x + 150 && // Điều chỉnh cho platform lớn hơn
+         mouseX <= platform.x + 150 && 
          mouseY >= platform.y && 
-         mouseY <= platform.y + 40; // Điều chỉnh cho platform cao hơn
+         mouseY <= platform.y + 80;
 }
 
 function jumpTo(platform) {
   player.isJumping = true;
   player.isAnimating = true;
+  player.isJumpingImg = true;
   player.jumpProgress = 0;
-  player.targetY = platform.y - 10; // Giảm vị trí nhân vật xuống 20px
-  player.targetX = platform.x + 75; // Điều chỉnh vị trí cho platform lớn hơn
+  player.targetY = platform.y - 10;
+  player.targetX = platform.x + 75;
 }
 
 function fallDown() {
@@ -339,7 +435,9 @@ function keyPressed() {
     player.vy = 0;
     player.isJumping = false;
     player.isAnimating = false;
+    player.isJumpingImg = false;
     player.jumpProgress = 0;
+    document.getElementById('checkpoint-message').style.display = 'none';
     loop();
   }
 }
