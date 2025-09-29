@@ -5,8 +5,6 @@ require('dotenv').config();
 
 const db = require('./db'); // <-- đảm bảo file ./db export connection (mysql2/mariadb)
 
-
-
 // App setup
 const app = express();
 const PORT = process.env.PORT || 5000;
