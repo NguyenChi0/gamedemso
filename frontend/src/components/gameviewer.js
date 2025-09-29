@@ -51,12 +51,13 @@ const GameViewer = () => {
   return (
     <div style={{ height: '100vh' }}>
       <iframe
-        src={`/games/${fileName}`}
-        title={fileName}
-        width="100%"
-        height="100%"
-        frameBorder="0"
-      />
+  src={`${process.env.PUBLIC_URL}/games/${fileName}`}
+  title={fileName}
+  width="100%"
+  height="100%"
+  frameBorder="0"
+/>
+
     </div>
   );
 };
