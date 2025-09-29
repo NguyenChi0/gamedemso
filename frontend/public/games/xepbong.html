@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎈 Game Kéo Bóng Vào Hộp 🎈</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka+One:wght@400&family=Comic+Neue:wght@400;700&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 50%, #fecfef 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Times New Roman', cursive;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        .title {
+            font-family: 'Arial', cursive;
+            font-size: 2.5rem;
+            color: #ff6b6b;
+            text-shadow: 3px 3px 0px #fff, 6px 6px 10px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+            animation: bounce 2s infinite;
+            text-align: center;
+            position: relative;
+            z-index: 10;
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-10px); }
+            60% { transform: translateY(-5px); }
+        }
+
+        .instruction {
+            font-size: 1.2rem;
+            color: #4a90e2;
+            font-weight: bold;
+            margin-bottom: 20px;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 15px 25px;
+            border-radius: 25px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            text-align: center;
+            position: relative;
+            z-index: 10;
+        }
+
+        #game {
+            position: relative;
+            width: 600px;
+            height: 500px;
+            background: linear-gradient(45deg, #a8edea 0%, #fed6e3 100%);
+            border: 5px solid #fff;
+            border-radius: 30px;
+            overflow: hidden;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+            animation: float 3s ease-in-out infinite;
+            z-index: 10;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-5px); }
+        }
+
+        .ball {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            background: linear-gradient(145deg, #ff6b6b, #ee5a52);
+            color: #fff;
+            text-align: center;
+            line-height: 70px;
+            font-size: 28px;
+            font-weight: bold;
+            position: absolute;
+            cursor: grab;
+            user-select: none;
+            box-shadow: 0 8px 20px rgba(255, 107, 107, 0.4);
+            transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            font-family: 'Arial', cursive;
+            border: 3px solid #fff;
+            z-index: 20;
+        }
+
+        .ball:nth-child(2n) { background: linear-gradient(145deg, #4ecdc4, #44a08d); }
+        .ball:nth-child(3n) { background: linear-gradient(145deg, #45b7d1, #2980b9); }
+        .ball:nth-child(4n) { background: linear-gradient(145deg, #96ceb4, #2ecc71); }
+        .ball:nth-child(5n) { background: linear-gradient(145deg, #feca57, #ff9ff3); }
+        .ball:nth-child(6n) { background: linear-gradient(145deg, #ff9ff3, #f368e0); }
+
+        .ball:hover {
+            transform: scale(1.15) rotate(5deg);
+            box-shadow: 0 12px 25px rgba(255, 107, 107, 0.6);
+            z-index: 100;
+        }
+
+        .ball:active {
+            cursor: grabbing;
+            transform: scale(1.2) rotate(10deg);
+        }
+
+        .ball.wiggle {
+            animation: wiggle 0.5s ease-in-out;
+        }
+
+        @keyframes wiggle {
+            0%, 100% { transform: rotate(0deg); }
+            25% { transform: rotate(-5deg); }
+            75% { transform: rotate(5deg); }
+        }
+
+        .ball.wrong {
+            animation: wrong-shake 0.6s ease-in-out;
+        }
+
+        @keyframes wrong-shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-10px); }
+            20%, 40%, 60%, 80% { transform: translateX(10px); }
+        }
+
+        #box {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 150px;
+            height: 150px;
+            background: linear-gradient(145deg, #fff, #f0f0f0);
+            border: 5px dashed #ff6b6b;
+            border-radius: 25px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            font-weight: bold;
+            color: #ff6b6b;
+            box-shadow: inset 0 0 20px rgba(255, 107, 107, 0.1), 0 8px 20px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            font-family: 'Arial', cursive;
+            text-align: center;
+            line-height: 1.2;
+            z-index: 20;
+        }
+
+        #box.dragover {
+            transform: translate(-50%, -50%) scale(1.1);
+            background: linear-gradient(145deg, #fff5f5, #ffe0e0);
+            border-color: #ff9ff3;
+            animation: pulse 0.6s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { box-shadow: inset 0 0 20px rgba(255, 107, 107, 0.3), 0 8px 20px rgba(255, 107, 107, 0.4); }
+            50% { box-shadow: inset 0 0 30px rgba(255, 107, 107, 0.5), 0 12px 30px rgba(255, 107, 107, 0.6); }
+        }
+
+        #box.success {
+            background: linear-gradient(145deg, #d4edda, #c3e6cb);
+            border-color: #28a745;
+            color: #28a745;
+            animation: celebrate 0.8s ease-in-out;
+        }
+
+        #box.wrong {
+            background: linear-gradient(145deg, #f8d7da, #f1b0b7);
+            border-color: #dc3545;
+            color: #dc3545;
+            animation: wrong-shake 0.6s ease-in-out;
+        }
+
+        @keyframes celebrate {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); }
+            25% { transform: translate(-50%, -50%) scale(1.2) rotate(-5deg); }
+            50% { transform: translate(-50%, -50%) scale(1.1) rotate(5deg); }
+            75% { transform: translate(-50%, -50%) scale(1.15) rotate(-2deg); }
+        }
+
+        .progress {
+            margin-top: 20px;
+            font-size: 1.1rem;
+            color: #4a90e2;
+            font-weight: bold;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 10px 20px;
+            border-radius: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            position: relative;
+            z-index: 10;
+        }
+
+        /* Thông báo popup */
+        .notification {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.95);
+            border: 3px solid #ff6b6b;
+            border-radius: 25px;
+            padding: 15px 25px;
+            font-family: 'Fredoka One', cursive;
+            font-size: 1.1rem;
+            color: #ff6b6b;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            z-index: 1000;
+            animation: notification-slide 0.5s ease-out;
+            text-align: center;
+            max-width: 90%;
+        }
+
+        .notification.success {
+            border-color: #28a745;
+            color: #28a745;
+            background: linear-gradient(145deg, #d4edda, #c3e6cb);
+        }
+
+        .notification.wrong {
+            border-color: #dc3545;
+            color: #dc3545;
+            background: linear-gradient(145deg, #f8d7da, #f1b0b7);
+            animation: notification-shake 0.8s ease-out;
+        }
+
+        @keyframes notification-slide {
+            from {
+                transform: translateX(-50%) translateY(-100px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(-50%) translateY(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes notification-shake {
+            0%, 100% { transform: translateX(-50%) translateY(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-60%) translateY(0); }
+            20%, 40%, 60%, 80% { transform: translateX(-40%) translateY(0); }
+        }
+
+        .celebration {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: #ff6b6b;
+            animation: confetti-fall 3s linear forwards;
+        }
+
+        @keyframes confetti-fall {
+            0% { transform: translateY(-100vh) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+        }
+
+        /* Hiệu ứng lan tỏa màu */
+        .color-wave {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+            opacity: 0;
+        }
+
+        .wave-circle {
+            position: absolute;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255,255,255,0) 0%, var(--wave-color) 70%);
+            transform: translate(-50%, -50%);
+            opacity: 0;
+            animation: wave-expand 1.5s ease-out forwards;
+        }
+
+        @keyframes wave-expand {
+            0% {
+                width: 0;
+                height: 0;
+                opacity: 0.8;
+            }
+            100% {
+                width: 200vmax;
+                height: 200vmax;
+                opacity: 0;
+            }
+        }
+
+        /* Cloud decorations */
+        .cloud {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 50px;
+            opacity: 0.7;
+            animation: float-cloud 8s ease-in-out infinite;
+            z-index: 2;
+        }
+
+        .cloud:before {
+            content: '';
+            position: absolute;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 50px;
+        }
+
+        .cloud1 {
+            width: 80px;
+            height: 80px;
+            top: 20%;
+            left: 10%;
+            animation-delay: -2s;
+        }
+
+        .cloud2 {
+            width: 60px;
+            height: 60px;
+            top: 30%;
+            right: 15%;
+            animation-delay: -4s;
+        }
+
+        @keyframes float-cloud {
+            0%, 100% { transform: translateX(0px); }
+            50% { transform: translateX(20px); }
+        }
+
+        @media (max-width: 768px) {
+            #game {
+                width: 90vw;
+                height: 70vh;
+                max-width: 500px;
+            }
+            
+            .title {
+                font-size: 2rem;
+            }
+            
+            .ball {
+                width: 60px;
+                height: 60px;
+                line-height: 60px;
+                font-size: 24px;
+            }
+            
+            #box {
+                width: 120px;
+                height: 120px;
+                font-size: 20px;
+            }
+            
+            .notification {
+                font-size: 1rem;
+                padding: 12px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Hiệu ứng lan tỏa màu -->
+    <div class="color-wave" id="color-wave"></div>
+    
+    <!-- Cloud decorations -->
+    <div class="cloud cloud1"></div>
+    <div class="cloud cloud2"></div>
+    
+    <h1 class="title">🎈 Kéo Bóng Vào Hộp 🎈</h1>
+    <div class="instruction">
+        Hãy kéo các quả bóng theo thứ tự từ số 1 đến 10 nhé! 🌟
+    </div>
+    
+    <div id="game">
+        <div id="box">
+            Kéo quả bóng tiếp theo vào đây! 🎯
+        </div>
+    </div>
+    
+    <div class="progress">
+        Tiến độ: <span id="progress-text">0/10</span> ⭐
+    </div>
+    
+    <div class="celebration" id="celebration"></div>
+
+    <script>
+        const game = document.getElementById("game");
+        const box = document.getElementById("box");
+        const progressText = document.getElementById("progress-text");
+        const celebration = document.getElementById("celebration");
+        const colorWave = document.getElementById("color-wave");
+        
+        let expected = 1;
+        let completed = 0;
+
+        // Màu sắc cho các quả bóng
+        const colors = [
+            'linear-gradient(145deg, #ff6b6b, #ee5a52)',
+            'linear-gradient(145deg, #4ecdc4, #44a08d)',
+            'linear-gradient(145deg, #45b7d1, #2980b9)',
+            'linear-gradient(145deg, #96ceb4, #2ecc71)',
+            'linear-gradient(145deg, #feca57, #ff9ff3)',
+            'linear-gradient(145deg, #ff9ff3, #f368e0)',
+            'linear-gradient(145deg, #a8e6cf, #7fcdcd)',
+            'linear-gradient(145deg, #ffd93d, #ff6b6b)',
+            'linear-gradient(145deg, #74b9ff, #0984e3)',
+            'linear-gradient(145deg, #fd79a8, #e84393)'
+        ];
+
+        // Màu chính cho hiệu ứng lan tỏa (lấy từ màu chính của gradient)
+        const mainColors = [
+            '#ff6b6b', '#4ecdc4', '#45b7d1', '#2ecc71', '#feca57', 
+            '#ff9ff3', '#a8e6cf', '#ffd93d', '#74b9ff', '#fd79a8'
+        ];
+
+        // Hàm hiển thị thông báo
+        function showNotification(message, type = 'normal') {
+            // Xóa thông báo cũ nếu có
+            const existingNotification = document.querySelector('.notification');
+            if (existingNotification) {
+                existingNotification.remove();
+            }
+
+            const notification = document.createElement('div');
+            notification.classList.add('notification');
+            if (type) notification.classList.add(type);
+            notification.textContent = message;
+            document.body.appendChild(notification);
+
+            // Tự động ẩn sau 3 giây
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.style.animation = 'notification-slide 0.5s ease-in reverse';
+                    setTimeout(() => notification.remove(), 500);
+                }
+            }, 3000);
+        }
+
+        // Hàm tạo hiệu ứng lan tỏa màu
+        function createColorWave(color, x, y) {
+            // Xóa các hiệu ứng cũ
+            while (colorWave.firstChild) {
+                colorWave.removeChild(colorWave.firstChild);
+            }
+            
+            // Tạo vòng tròn lan tỏa
+            const wave = document.createElement('div');
+            wave.classList.add('wave-circle');
+            wave.style.setProperty('--wave-color', color);
+            wave.style.left = x + 'px';
+            wave.style.top = y + 'px';
+            
+            colorWave.appendChild(wave);
+            
+            // Xóa hiệu ứng sau khi hoàn thành
+            setTimeout(() => {
+                if (wave.parentNode) {
+                    colorWave.removeChild(wave);
+                }
+            }, 1500);
+        }
+
+        // Tạo bóng 1→10 với vị trí ngẫu nhiên và màu sắc đa dạng
+        function createBalls() {
+            for (let i = 1; i <= 10; i++) {
+                const ball = document.createElement("div");
+                ball.classList.add("ball");
+                ball.textContent = i;
+                ball.style.background = colors[i - 1];
+                
+                // Đảm bảo bóng không đè lên hộp
+                let top, left;
+                do {
+                    top = Math.random() * (500 - 70);
+                    left = Math.random() * (600 - 70);
+                } while (
+                    top > 200 && top < 350 && 
+                    left > 225 && left < 375
+                );
+                
+                ball.style.top = top + "px";
+                ball.style.left = left + "px";
+                ball.setAttribute("draggable", "true");
+                game.appendChild(ball);
+
+                // Sự kiện kéo
+                ball.addEventListener("dragstart", e => {
+                    e.dataTransfer.setData("text/plain", i);
+                    ball.style.opacity = "0.7";
+                });
+
+                ball.addEventListener("dragend", e => {
+                    ball.style.opacity = "1";
+                });
+
+                // Hiệu ứng hover
+                ball.addEventListener("mouseenter", () => {
+                    if (parseInt(ball.textContent) !== expected) {
+                        ball.classList.add("wiggle");
+                        setTimeout(() => ball.classList.remove("wiggle"), 500);
+                    }
+                });
+            }
+        }
+
+        // Sự kiện cho hộp
+        box.addEventListener("dragover", e => {
+            e.preventDefault();
+            box.classList.add("dragover");
+        });
+
+        box.addEventListener("dragleave", e => {
+            box.classList.remove("dragover");
+        });
+
+        box.addEventListener("drop", e => {
+            e.preventDefault();
+            box.classList.remove("dragover");
+            
+            const num = parseInt(e.dataTransfer.getData("text/plain"));
+            const ball = [...document.querySelectorAll(".ball")].find(b => 
+                parseInt(b.textContent) === num
+            );
+
+            if (num === expected) {
+                // Lấy vị trí của quả bóng để tạo hiệu ứng lan tỏa
+                const ballRect = ball.getBoundingClientRect();
+                const ballX = ballRect.left + ballRect.width / 2;
+                const ballY = ballRect.top + ballRect.height / 2;
+                
+                // Tạo hiệu ứng lan tỏa màu từ quả bóng
+                createColorWave(mainColors[num - 1], ballX, ballY);
+                
+                // Hiệu ứng thành công
+                box.classList.add("success");
+                setTimeout(() => box.classList.remove("success"), 800);
+                
+                // Hiển thị thông báo thành công
+                const successMessages = [
+                    `🎉 Tuyệt vời! Số ${num} đúng rồi!`,
+                    `⭐ Giỏi quá! Tiếp tục nhé!`,
+                    `🌟 Chính xác! Bạn làm rất tốt!`,
+                    `🎯 Xuất sắc! Đúng số ${num}!`
+                ];
+                showNotification(successMessages[Math.floor(Math.random() * successMessages.length)], 'success');
+                
+                // Xóa bóng với hiệu ứng
+                ball.style.transform = "scale(0) rotate(360deg)";
+                ball.style.opacity = "0";
+                setTimeout(() => ball.remove(), 300);
+                
+                completed++;
+                expected++;
+                
+                // Cập nhật giao diện
+                if (expected <= 10) {
+                    progressText.textContent = `${completed}/10`;
+                } else {
+                    // Hoàn thành game
+                    box.innerHTML = "🎉<br>Hoàn thành!<br>🎉";
+                    box.style.background = "linear-gradient(145deg, #d4edda, #c3e6cb)";
+                    box.style.borderColor = "#28a745";
+                    box.style.color = "#28a745";
+                    progressText.textContent = "10/10 - Xuất sắc!";
+                    
+                    // Hiệu ứng pháo hoa
+                    createConfetti();
+                    
+                    // Thông báo hoàn thành
+                    setTimeout(() => {
+                        showNotification("🎉 Chúc mừng! Bạn đã hoàn thành xuất sắc! 🎉", 'success');
+                    }, 1000);
+                }
+                
+            } else {
+                // Hiệu ứng sai
+                box.classList.add("wrong");
+                setTimeout(() => box.classList.remove("wrong"), 600);
+                
+                ball.classList.add("wrong");
+                setTimeout(() => ball.classList.remove("wrong"), 600);
+                
+                // Thông báo nhẹ nhàng hơn cho trẻ em
+                const messages = [
+                    `😊 Chưa đúng! Hãy thử số ${expected} nhé!`,
+                    `🌟 Gần đúng rồi! Số ${expected} đang chờ bạn!`,
+                    `🎈 Thử lại nhé! Kéo số ${expected} vào hộp!`,
+                    `💫 Hãy tìm số ${expected} và kéo vào đây!`
+                ];
+                showNotification(messages[Math.floor(Math.random() * messages.length)], 'wrong');
+            }
+        });
+
+        // Tạo hiệu ứng pháo hoa
+        function createConfetti() {
+            const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#feca57', '#ff9ff3'];
+            
+            for (let i = 0; i < 50; i++) {
+                setTimeout(() => {
+                    const confetti = document.createElement('div');
+                    confetti.classList.add('confetti');
+                    confetti.style.left = Math.random() * 100 + '%';
+                    confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
+                    confetti.style.animationDelay = Math.random() * 2 + 's';
+                    celebration.appendChild(confetti);
+                    
+                    setTimeout(() => confetti.remove(), 3000);
+                }, i * 100);
+            }
+        }
+
+        // Khởi tạo game
+        createBalls();
+    </script>
+</body>
+</html>

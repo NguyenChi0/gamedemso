@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Game Câu Cá Theo Số</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      background: linear-gradient(to bottom, #1a2980, #26d0ce);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      overflow: hidden;
+      font-family: 'Arial Rounded MT Bold', 'Arial', sans-serif;
+      color: #fff;
+      touch-action: manipulation;
+      padding: 20px;
+    }
+    h1 {
+      margin-bottom: 15px;
+      text-align: center;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+      font-size: 2.2rem;
+      color: #FFD700;
+    }
+    #gameContainer {
+      position: relative;
+      margin-bottom: 20px;
+    }
+    canvas {
+      background: linear-gradient(to bottom, #0a3d62, #1e5799);
+      border: 5px solid #2c3e50;
+      border-radius: 10px;
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
+    }
+    #guide {
+      position: absolute;
+      top: 330px;
+      width: 100%;
+      text-align: center;
+      font-size: 16px;
+      text-shadow: 1px 1px 2px #000;
+      padding: 0 10px;
+    }
+    #message {
+      position: absolute;
+      top: 40px;
+      width: 100%;
+      text-align: center;
+      font-size: 20px;
+      color: yellow;
+      text-shadow: 1px 1px 2px #000;
+      font-weight: bold;
+    }
+    #score {
+      position: absolute;
+      top: 300px;
+      width: 100%;
+      text-align: center;
+      font-size: 18px;
+      color: #fff;
+      text-shadow: 1px 1px 2px #000;
+    }
+    #target {
+      position: absolute;
+      top: 100px;
+      width: 100%;
+      text-align: center;
+      font-size: 18px;
+      color: #FFD700;
+      text-shadow: 1px 1px 2px #000;
+      font-weight: bold;
+    }
+    #level {
+      position: absolute;
+      top: 70px;
+      width: 100%;
+      text-align: center;
+      font-size: 18px;
+      color: #FF6B6B;
+      text-shadow: 1px 1px 2px #000;
+      font-weight: bold;
+    }
+    #controller {
+      display: flex;
+      justify-content: center;
+      gap: 30px;
+      margin-top: 20px;
+      flex-wrap: wrap;
+    }
+    .control-btn {
+      width: 70px;
+      height: 70px;
+      background-color: rgba(255, 255, 255, 0.3);
+      border: 3px solid #fff;
+      border-radius: 50%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 30px;
+      color: white;
+      cursor: pointer;
+      user-select: none;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+      transition: all 0.1s;
+    }
+    .control-btn:active {
+      background-color: rgba(255, 255, 255, 0.5);
+      transform: scale(0.95);
+    }
+    #drop-btn {
+      background-color: rgba(231, 76, 60, 0.7);
+    }
+    #restart-btn, #next-level-btn {
+      margin-top: 20px;
+      padding: 12px 25px;
+      background: linear-gradient(to bottom, #27ae60, #219653);
+      color: white;
+      border: none;
+      border-radius: 50px;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+      transition: all 0.2s;
+      display: none;
+    }
+    #next-level-btn {
+      background: linear-gradient(to bottom, #3498db, #2980b9);
+      margin-left: 10px;
+    }
+    #restart-btn:active, #next-level-btn:active {
+      transform: scale(0.95);
+    }
+    #instructions {
+      background: rgba(0, 0, 0, 0.6);
+      padding: 15px;
+      border-radius: 10px;
+      margin-top: 20px;
+      max-width: 500px;
+      text-align: center;
+    }
+    .button-container {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+    }
+    @media (max-width: 500px) {
+      canvas {
+        width: 100%;
+        height: auto;
+      }
+      h1 {
+        font-size: 1.8rem;
+      }
+      .control-btn {
+        width: 60px;
+        height: 60px;
+      }
+      .button-container {
+        flex-direction: column;
+        align-items: center;
+      }
+      #restart-btn, #next-level-btn {
+        margin-left: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>Game Câu Cá Theo Số</h1>
+  <div id="gameContainer">
+    <div id="guide">← → để di chuyển | Space hoặc ↓ để thả cần</div>
+    <div id="message"></div>
+    <div id="score">Điểm: 0</div>
+    <div id="level">Cấp độ: 1 (Số 1-10)</div>
+    <div id="target">Cần câu số: 1</div>
+    <canvas id="gameCanvas" width="800" height="400"></canvas>
+  </div>
+  
+  <div id="controller">
+    <div class="control-btn" id="left-btn">←</div>
+    <div class="control-btn" id="drop-btn">↓</div>
+    <div class="control-btn" id="right-btn">→</div>
+  </div>
+
+  <div class="button-container">
+    <button id="restart-btn">Chơi Lại</button>
+    <button id="next-level-btn">Cấp Độ Tiếp Theo</button>
+  </div>
+
+  <div id="instructions">
+    <p><strong>Luật chơi:</strong> Bạn phải câu cá theo thứ tự từ 1 đến 40 qua 4 cấp độ.<br>
+    Nếu câu sai số, bạn sẽ thua!</p>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    const messageBox = document.getElementById("message");
+    const scoreElement = document.getElementById("score");
+    const targetElement = document.getElementById("target");
+    const levelElement = document.getElementById("level");
+    const leftBtn = document.getElementById("left-btn");
+    const rightBtn = document.getElementById("right-btn");
+    const dropBtn = document.getElementById("drop-btn");
+    const restartBtn = document.getElementById("restart-btn");
+    const nextLevelBtn = document.getElementById("next-level-btn");
+
+    // Các biến trò chơi
+    let clawX = 250;
+    let clawWidth = 40;
+    let clawHeight = 20;
+    let clawMove = 5;
+    let ropeLength = 50;
+    let isDropping = false;
+    let isReturning = false;
+    let score = 0;
+    let currentTarget = 1;
+    let gameOver = false;
+    let currentLevel = 1;
+    let totalLevels = 4;
+    let maxTarget = 10; // Mỗi cấp độ có 10 số
+
+    // Xác định ranh giới nước
+    const waterLevel = 100;
+    let waveOffset = 0;
+
+    // Tạo bong bóng với chuyển động chậm hơn và tự nhiên
+    let bubbles = [];
+    function initBubbles() {
+      bubbles = [];
+      for (let i = 0; i < 15; i++) {
+        bubbles.push({
+          x: Math.random() * canvas.width,
+          y: waterLevel + Math.random() * (canvas.height - waterLevel),
+          size: Math.random() * 8 + 3,
+          speed: Math.random() * 0.8 + 0.3,
+          opacity: Math.random() * 0.6 + 0.2,
+          wobble: Math.random() * 0.02 + 0.01
+        });
+      }
+    }
+
+    // Cập nhật bong bóng
+    function updateBubbles() {
+      bubbles.forEach(bubble => {
+        bubble.y -= bubble.speed;
+        bubble.x += Math.sin(bubble.y * bubble.wobble) * 0.5;
+        
+        // Reset bong bóng khi ra khỏi màn hình
+        if (bubble.y < waterLevel) {
+          bubble.y = canvas.height - Math.random() * 50;
+          bubble.x = Math.random() * canvas.width;
+          bubble.size = Math.random() * 8 + 3;
+          bubble.speed = Math.random() * 0.8 + 0.3;
+          bubble.opacity = Math.random() * 0.6 + 0.2;
+        }
+      });
+    }
+
+    // Vẽ bong bóng
+    function drawBubbles() {
+      bubbles.forEach(bubble => {
+        ctx.save();
+        ctx.globalAlpha = bubble.opacity;
+        
+        // Tạo gradient cho bong bóng
+        const gradient = ctx.createRadialGradient(
+          bubble.x - bubble.size * 0.3, bubble.y - bubble.size * 0.3, 0,
+          bubble.x, bubble.y, bubble.size
+        );
+        gradient.addColorStop(0, "rgba(255, 255, 255, 0.8)");
+        gradient.addColorStop(0.7, "rgba(173, 216, 230, 0.4)");
+        gradient.addColorStop(1, "rgba(173, 216, 230, 0.1)");
+        
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(bubble.x, bubble.y, bubble.size, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Thêm viền mờ
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.3)";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        
+        ctx.restore();
+      });
+    }
+
+    // Màu sắc cho cá từ 1 đến 40
+    const fishColors = ["#ff5252", "#ffeb3b", "#2196f3", "#9c27b0", "#4caf50", 
+                       "#ff9800", "#00bcd4", "#e91e63", "#8bc34a", "#673ab7",
+                       "#f44336", "#cddc39", "#03a9f4", "#673ab7", "#4caf50",
+                       "#ff5722", "#009688", "#e91e63", "#ffc107", "#3f51b5",
+                       "#795548", "#9e9e9e", "#607d8b", "#ff4081", "#7c4dff",
+                       "#00bcd4", "#ffeb3b", "#76ff03", "#ff9100", "#d500f9",
+                       "#ff1744", "#3d5afe", "#ffea00", "#1de9b6", "#ff3d00",
+                       "#651fff", "#f50057", "#2979ff", "#00e676", "#ffab00"];
+
+    let fishes = [];
+
+    // Khởi tạo cá cho cấp độ hiện tại
+    function initFishes() {
+      fishes = [];
+      const startNumber = (currentLevel - 1) * 10 + 1;
+      const endNumber = currentLevel * 10;
+      
+      for (let i = startNumber; i <= endNumber; i++) {
+        fishes.push({
+          x: Math.random() * (canvas.width - 80) + 40,
+          y: waterLevel + 20 + Math.random() * (canvas.height - waterLevel - 70),
+          vx: (Math.random() - 0.5) * (2 + (currentLevel - 1) * 0.5), // Tăng tốc độ theo cấp độ
+          vy: (Math.random() - 0.5) * (1.5 + (currentLevel - 1) * 0.3),
+          size: 30 - (currentLevel - 1) * 2, // Giảm kích thước theo cấp độ
+          num: i,
+          color: fishColors[i-1],
+          caught: false,
+          direction: Math.random() > 0.5 ? 1 : -1
+        });
+      }
+    }
+
+    let caughtFish = null;
+
+    // Vẽ ranh giới nước với hiệu ứng sóng
+    function drawWaterSurface() {
+      ctx.save();
+      
+      // Tạo gradient cho mặt nước
+      const waterSurfaceGradient = ctx.createLinearGradient(0, waterLevel - 10, 0, waterLevel + 10);
+      waterSurfaceGradient.addColorStop(0, "rgba(173, 216, 230, 0.6)");
+      waterSurfaceGradient.addColorStop(0.5, "rgba(135, 206, 250, 0.8)");
+      waterSurfaceGradient.addColorStop(1, "rgba(135, 206, 250, 0.4)");
+      
+      ctx.fillStyle = waterSurfaceGradient;
+      ctx.beginPath();
+      
+      // Vẽ đường sóng
+      ctx.moveTo(0, waterLevel);
+      for (let x = 0; x < canvas.width; x += 10) {
+        const y = waterLevel + Math.sin(x * 0.05 + waveOffset) * 3;
+        ctx.lineTo(x, y);
+      }
+      ctx.lineTo(canvas.width, waterLevel);
+      ctx.lineTo(canvas.width, waterLevel + 10);
+      ctx.lineTo(0, waterLevel + 10);
+      ctx.closePath();
+      ctx.fill();
+      
+      // Vẽ hiệu ứng ánh sáng trên mặt nước
+      ctx.fillStyle = "rgba(255, 255, 255, 0.2)";
+      ctx.beginPath();
+      ctx.moveTo(0, waterLevel);
+      for (let x = 0; x < canvas.width; x += 15) {
+        const y = waterLevel + Math.sin(x * 0.03 + waveOffset * 1.5) * 2;
+        ctx.lineTo(x, y);
+      }
+      ctx.lineTo(canvas.width, waterLevel);
+      ctx.lineTo(canvas.width, waterLevel + 5);
+      ctx.lineTo(0, waterLevel + 5);
+      ctx.closePath();
+      ctx.fill();
+      
+      ctx.restore();
+    }
+
+    // Vẽ thuyền câu cá với nhân vật
+    function drawBoat() {
+      const boatX = clawX - 40;
+      const boatY = waterLevel - 35;
+      
+      // Thân thuyền với gradient
+      const boatGradient = ctx.createLinearGradient(boatX, boatY, boatX, boatY + 25);
+      boatGradient.addColorStop(0, "#8B4513");
+      boatGradient.addColorStop(0.3, "#D2691E");
+      boatGradient.addColorStop(1, "#654321");
+      
+      ctx.fillStyle = boatGradient;
+      ctx.beginPath();
+      ctx.moveTo(boatX, boatY + 25);
+      ctx.quadraticCurveTo(boatX - 5, boatY + 30, boatX + 10, boatY + 30);
+      ctx.lineTo(boatX + 70, boatY + 30);
+      ctx.quadraticCurveTo(boatX + 85, boatY + 30, boatX + 80, boatY + 25);
+      ctx.lineTo(boatX + 75, boatY + 10);
+      ctx.lineTo(boatX + 5, boatY + 10);
+      ctx.closePath();
+      ctx.fill();
+      
+      // Viền thuyền
+      ctx.strokeStyle = "#5D4E37";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      
+      // Cabin thuyền
+      ctx.fillStyle = "#FF6B47";
+      ctx.fillRect(boatX + 15, boatY - 5, 25, 15);
+      
+      // Cửa sổ cabin
+      ctx.fillStyle = "#87CEEB";
+      ctx.fillRect(boatX + 18, boatY - 2, 8, 6);
+      ctx.fillRect(boatX + 30, boatY - 2, 8, 6);
+      
+      // Ống khói với khói
+      ctx.fillStyle = "#696969";
+      ctx.fillRect(boatX + 45, boatY - 12, 4, 10);
+      
+      // Khói bay
+      ctx.fillStyle = "rgba(200, 200, 200, 0.6)";
+      for (let i = 0; i < 3; i++) {
+        ctx.beginPath();
+        ctx.arc(boatX + 47 + i * 3, boatY - 15 - i * 5, 2 + i, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      
+      // Vẽ nhân vật ngồi câu cá
+      drawFisherman(boatX + 60, boatY + 5);
+      
+      // Cần câu
+      ctx.strokeStyle = "#8B4513";
+      ctx.lineWidth = 3;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(boatX + 60, boatY + 5);
+      ctx.lineTo(clawX, waterLevel + 20);
+      ctx.stroke();
+      
+      // Máy câu (reel)
+      ctx.fillStyle = "#C0C0C0";
+      ctx.beginPath();
+      ctx.arc(boatX + 60, boatY + 5, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Vẽ người câu cá
+    function drawFisherman(x, y) {
+      // Đầu
+      ctx.fillStyle = "#FFDAB9";
+      ctx.beginPath();
+      ctx.arc(x, y - 10, 6, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Mắt
+      ctx.fillStyle = "#000";
+      ctx.beginPath();
+      ctx.arc(x - 2, y - 11, 1, 0, Math.PI * 2);
+      ctx.arc(x + 2, y - 11, 1, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Thân
+      ctx.fillStyle = "#1E90FF";
+      ctx.fillRect(x - 5, y - 4, 10, 10);
+      
+      // Mũ
+      ctx.fillStyle = "#FF0000";
+      ctx.beginPath();
+      ctx.arc(x, y - 16, 5, 0, Math.PI, true);
+      ctx.fill();
+      
+      // Tay cầm cần
+      ctx.fillStyle = "#FFDAB9";
+      ctx.fillRect(x - 2, y - 4, 4, 4);
+    }
+
+    // Vẽ cần câu đã bỏ thanh xám
+    function drawClaw() {
+      // Vẽ dây câu với gradient
+      const ropeGradient = ctx.createLinearGradient(clawX - 2, waterLevel + 20, clawX + 2, ropeLength);
+      ropeGradient.addColorStop(0, "#bebebe");
+      ropeGradient.addColorStop(1, "#686868");
+      ctx.fillStyle = ropeGradient;
+      ctx.fillRect(clawX - 2, waterLevel + 20, 4, ropeLength - (waterLevel + 20));
+      
+      // Vẽ móc câu đẹp hơn (bỏ thanh ngang màu xám)
+      const hookX = clawX;
+      const hookY = ropeLength; // Móc nối trực tiếp với dây
+      
+      // Phần thẳng của móc
+      ctx.strokeStyle = "#dc143c";
+      ctx.lineWidth = 3;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(hookX, hookY);
+      ctx.lineTo(hookX, hookY + 12);
+      ctx.stroke();
+      
+      // Phần cong của móc
+      ctx.beginPath();
+      ctx.arc(hookX - 4, hookY + 12, 4, 0, Math.PI);
+      ctx.stroke();
+      
+      // Đầu nhọn của móc
+      ctx.beginPath();
+      ctx.moveTo(hookX - 8, hookY + 12);
+      ctx.lineTo(hookX - 10, hookY + 10);
+      ctx.stroke();
+      
+      // Thêm ánh sáng cho móc
+      ctx.strokeStyle = "#ff6347";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(hookX - 1, hookY);
+      ctx.lineTo(hookX - 1, hookY + 8);
+      ctx.stroke();
+    }
+
+    // Vẽ cá
+    function drawFishes() {
+      fishes.forEach(fish => {
+        if (!fish.caught) {
+          // Vẽ thân cá với gradient
+          const fishGradient = ctx.createRadialGradient(
+            fish.x - fish.size * 0.2, fish.y - fish.size * 0.1, 0,
+            fish.x, fish.y, fish.size / 2
+          );
+          fishGradient.addColorStop(0, fish.color);
+          fishGradient.addColorStop(1, fish.color + "80");
+          
+          ctx.fillStyle = fishGradient;
+          ctx.beginPath();
+          ctx.ellipse(fish.x, fish.y, fish.size / 2, fish.size / 3, 0, 0, Math.PI * 2);
+          ctx.fill();
+          
+          // Viền cá
+          ctx.strokeStyle = fish.color;
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          
+          // Vẽ đuôi cá
+          ctx.fillStyle = fish.color;
+          ctx.beginPath();
+          ctx.moveTo(fish.x - (fish.size / 3) * fish.direction, fish.y);
+          ctx.lineTo(fish.x - (fish.size / 1.5) * fish.direction, fish.y - fish.size / 3);
+          ctx.lineTo(fish.x - (fish.size / 1.5) * fish.direction, fish.y + fish.size / 3);
+          ctx.closePath();
+          ctx.fill();
+          
+          // Vẽ vây cá
+          ctx.beginPath();
+          ctx.moveTo(fish.x - (fish.size / 8) * fish.direction, fish.y - fish.size / 4);
+          ctx.lineTo(fish.x - (fish.size / 4) * fish.direction, fish.y - fish.size / 2);
+          ctx.lineTo(fish.x + (fish.size / 8) * fish.direction, fish.y - fish.size / 6);
+          ctx.closePath();
+          ctx.fill();
+          
+          // Vẽ mắt cá
+          ctx.fillStyle = "white";
+          ctx.beginPath();
+          ctx.arc(fish.x + (fish.size / 4) * fish.direction, fish.y - fish.size / 10, fish.size / 8, 0, Math.PI * 2);
+          ctx.fill();
+          
+          ctx.fillStyle = "black";
+          ctx.beginPath();
+          ctx.arc(fish.x + (fish.size / 4) * fish.direction, fish.y - fish.size / 10, fish.size / 16, 0, Math.PI * 2);
+          ctx.fill();
+          
+          // Vẽ số trên cá với viền
+          ctx.strokeStyle = "black";
+          ctx.lineWidth = 3;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.font = "bold " + (fish.size / 2.5) + "px Arial";
+          ctx.strokeText(fish.num, fish.x, fish.y);
+          
+          ctx.fillStyle = "white";
+          ctx.fillText(fish.num, fish.x, fish.y);
+        }
+      });
+    }
+
+    // Cập nhật vị trí cá
+    function updateFishes() {
+      fishes.forEach(fish => {
+        if (!fish.caught && !gameOver) {
+          fish.x += fish.vx;
+          fish.y += fish.vy;
+
+          if (fish.vx > 0) fish.direction = 1;
+          else if (fish.vx < 0) fish.direction = -1;
+
+          if (fish.x < fish.size / 2) {
+            fish.x = fish.size / 2;
+            fish.vx *= -1;
+          } else if (fish.x > canvas.width - fish.size / 2) {
+            fish.x = canvas.width - fish.size / 2;
+            fish.vx *= -1;
+          }
+          
+          if (fish.y < waterLevel + 10) {
+            fish.y = waterLevel + 10;
+            fish.vy *= -1;
+          } else if (fish.y > canvas.height - fish.size / 2) {
+            fish.y = canvas.height - fish.size / 2;
+            fish.vy *= -1;
+          }
+
+          fishes.forEach(other => {
+            if (fish !== other && !other.caught) {
+              let dx = fish.x - other.x;
+              let dy = fish.y - other.y;
+              let dist = Math.sqrt(dx * dx + dy * dy);
+              if (dist < fish.size) {
+                let angle = Math.atan2(dy, dx);
+                let overlap = fish.size - dist;
+                fish.x += Math.cos(angle) * (overlap / 2);
+                fish.y += Math.sin(angle) * (overlap / 2);
+                other.x -= Math.cos(angle) * (overlap / 2);
+                other.y -= Math.sin(angle) * (overlap / 2);
+                
+                let tempVx = fish.vx;
+                let tempVy = fish.vy;
+                fish.vx = other.vx;
+                fish.vy = other.vy;
+                other.vx = tempVx;
+                other.vy = tempVy;
+              }
+            }
+          });
+        }
+      });
+    }
+
+    // Cập nhật cần câu (điều chỉnh vị trí móc)
+    function updateClaw() {
+      if (isDropping && !gameOver) {
+        ropeLength += 5;
+        let clawTipX = clawX;
+        let clawTipY = ropeLength + 15; // Điều chỉnh vị trí móc
+
+        if (ropeLength > canvas.height - 50) {
+          isDropping = false;
+          isReturning = true;
+        }
+
+        fishes.forEach(fish => {
+          if (!fish.caught) {
+            let dx = clawTipX - fish.x;
+            let dy = clawTipY - fish.y;
+            let distance = Math.sqrt(dx * dx + dy * dy);
+            if (distance < fish.size / 2 + 5) {
+              fish.caught = true;
+              caughtFish = fish;
+              isDropping = false;
+              isReturning = true;
+              
+              if (fish.num === currentTarget) {
+                score += 10;
+                scoreElement.innerText = "Điểm: " + score;
+                currentTarget++;
+                
+                // Kiểm tra nếu đã hoàn thành cấp độ hiện tại
+                if (currentTarget > currentLevel * 10) {
+                  if (currentLevel < totalLevels) {
+                    // Hoàn thành cấp độ
+                    gameOver = true;
+                    messageBox.innerText = "Chúc mừng! Bạn đã hoàn thành cấp độ " + currentLevel + "!";
+                    nextLevelBtn.style.display = "block";
+                  } else {
+                    // Hoàn thành toàn bộ trò chơi
+                    gameOver = true;
+                    messageBox.innerText = "Chúc mừng! Bạn đã chiến thắng toàn bộ trò chơi! 🎉";
+                    restartBtn.style.display = "block";
+                  }
+                } else {
+                  targetElement.innerText = "Cần câu số: " + currentTarget;
+                }
+              } else {
+                gameOver = true;
+                messageBox.innerText = "Bạn đã câu sai số! Trò chơi kết thúc!";
+                restartBtn.style.display = "block";
+              }
+            }
+          }
+        });
+
+      } else if (isReturning && !gameOver) {
+        ropeLength -= 5;
+        if (caughtFish) {
+          caughtFish.x = clawX;
+          caughtFish.y = ropeLength + 15 + caughtFish.size / 2; // Điều chỉnh vị trí cá bị câu
+        }
+        if (ropeLength <= waterLevel + 20) {
+          isReturning = false;
+          if (caughtFish) {
+            messageBox.innerText = "Bạn đã câu được số " + caughtFish.num;
+            setTimeout(() => {
+              if (!gameOver) messageBox.innerText = "";
+            }, 2000);
+            caughtFish = null;
+          }
+        }
+      }
+    }
+
+    // Vẽ nền đáy biển với chi tiết hơn
+    function drawSeaBottom() {
+      // Vẽ cát đáy biển
+      const sandGradient = ctx.createLinearGradient(0, canvas.height - 40, 0, canvas.height);
+      sandGradient.addColorStop(0, "#daa520");
+      sandGradient.addColorStop(1, "#8b7355");
+      ctx.fillStyle = sandGradient;
+      ctx.beginPath();
+      ctx.ellipse(canvas.width/2, canvas.height + 20, canvas.width/2, 40, 0, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Vẽ rong biển
+      ctx.fillStyle = "#228b22";
+      for (let i = 0; i < 5; i++) {
+        const x = (i + 1) * (canvas.width / 6);
+        const height = Math.random() * 30 + 20;
+        ctx.beginPath();
+        ctx.ellipse(x, canvas.height - 10, 3, height, Math.sin(Date.now() * 0.001 + i) * 0.2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      
+      // Vẽ san hô với gradient
+      const coralGradient1 = ctx.createRadialGradient(80, canvas.height - 45, 0, 80, canvas.height - 45, 25);
+      coralGradient1.addColorStop(0, "#ff6b9d");
+      coralGradient1.addColorStop(1, "#c44569");
+      ctx.fillStyle = coralGradient1;
+      ctx.beginPath();
+      ctx.moveTo(50, canvas.height - 30);
+      ctx.lineTo(80, canvas.height - 60);
+      ctx.lineTo(110, canvas.height - 30);
+      ctx.closePath();
+      ctx.fill();
+      
+      const coralGradient2 = ctx.createRadialGradient(canvas.width - 80, canvas.height - 45, 0, canvas.width - 80, canvas.height - 45, 25);
+      coralGradient2.addColorStop(0, "#74b9ff");
+      coralGradient2.addColorStop(1, "#0984e3");
+      ctx.fillStyle = coralGradient2;
+      ctx.beginPath();
+      ctx.moveTo(canvas.width - 50, canvas.height - 30);
+      ctx.lineTo(canvas.width - 80, canvas.height - 60);
+      ctx.lineTo(canvas.width - 110, canvas.height - 30);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // Vòng lặp game
+    function gameLoop() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Vẽ nền với gradient đẹp hơn
+      const bgGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      bgGradient.addColorStop(0, "#1e3c72");
+      bgGradient.addColorStop(0.5, "#2a5298");
+      bgGradient.addColorStop(1, "#1e5799");
+      ctx.fillStyle = bgGradient;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      // Cập nhật hiệu ứng sóng
+      waveOffset += 0.1;
+      
+      updateBubbles();
+      drawBubbles();
+      drawSeaBottom();
+      drawWaterSurface(); // Vẽ ranh giới nước
+      drawBoat();
+      drawFishes();
+      drawClaw();
+      if (!gameOver) {
+        updateFishes();
+        updateClaw();
+      }
+      requestAnimationFrame(gameLoop);
+    }
+
+    // Điều khiển bằng bàn phím
+    document.addEventListener("keydown", (e) => {
+      if (gameOver) return;
+      
+      if (e.key === "ArrowLeft" && !isDropping && !isReturning) {
+        clawX = Math.max(clawX - clawMove, clawWidth / 2);
+      } else if (e.key === "ArrowRight" && !isDropping && !isReturning) {
+        clawX = Math.min(clawX + clawMove, canvas.width - clawWidth / 2);
+      } else if ((e.key === " " || e.key === "ArrowDown") && !isDropping && !isReturning) {
+        isDropping = true;
+      }
+    });
+
+    // Điều khiển cảm ứng cho mobile
+    leftBtn.addEventListener("touchstart", (e) => {
+      e.preventDefault();
+      if (!isDropping && !isReturning && !gameOver) {
+        clawX = Math.max(clawX - clawMove, clawWidth / 2);
+      }
+    });
+
+    rightBtn.addEventListener("touchstart", (e) => {
+      e.preventDefault();
+      if (!isDropping && !isReturning && !gameOver) {
+        clawX = Math.min(clawX + clawMove, canvas.width - clawWidth / 2);
+      }
+    });
+
+    dropBtn.addEventListener("touchstart", (e) => {
+      e.preventDefault();
+      if (!isDropping && !isReturning && !gameOver) {
+        isDropping = true;
+      }
+    });
+
+    // Nút chơi lại
+    restartBtn.addEventListener("click", restartGame);
+    
+    // Nút chuyển cấp độ
+    nextLevelBtn.addEventListener("click", nextLevel);
+    
+    function restartGame() {
+      clawX = 250;
+      ropeLength = waterLevel + 20;
+      isDropping = false;
+      isReturning = false;
+      score = 0;
+      currentLevel = 1;
+      currentTarget = 1;
+      gameOver = false;
+      caughtFish = null;
+      
+      scoreElement.innerText = "Điểm: 0";
+      levelElement.innerText = "Cấp độ: 1 (Số 1-10)";
+      targetElement.innerText = "Cần câu số: 1";
+      messageBox.innerText = "";
+      restartBtn.style.display = "none";
+      nextLevelBtn.style.display = "none";
+      
+      // Tạo lại cá
+      initFishes();
+      
+      // Tạo lại bong bóng
+      initBubbles();
+    }
+    
+    function nextLevel() {
+      currentLevel++;
+      currentTarget = (currentLevel - 1) * 10 + 1;
+      gameOver = false;
+      caughtFish = null;
+      isDropping = false;
+      isReturning = false;
+      ropeLength = waterLevel + 20;
+      
+      // Cập nhật thông tin cấp độ
+      let levelRange = "";
+      if (currentLevel === 2) levelRange = "Số 11-20";
+      else if (currentLevel === 3) levelRange = "Số 21-30";
+      else if (currentLevel === 4) levelRange = "Số 31-40";
+      
+      levelElement.innerText = "Cấp độ: " + currentLevel + " (" + levelRange + ")";
+      targetElement.innerText = "Cần câu số: " + currentTarget;
+      messageBox.innerText = "";
+      nextLevelBtn.style.display = "none";
+      
+      // Tạo cá mới cho cấp độ mới
+      initFishes();
+      
+      // Tăng tốc độ di chuyển của cần câu ở các cấp độ cao hơn
+      clawMove = 5 + (currentLevel - 1);
+    }
+
+    // Khởi động game
+    initBubbles();
+    initFishes();
+    levelElement.innerText = "Cấp độ: 1 (Số 1-10)";
+    targetElement.innerText = "Cần câu số: 1";
+    gameLoop();
+  </script>
+</body>
+</html>

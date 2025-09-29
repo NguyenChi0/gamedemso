@@ -37,6 +37,41 @@
         font-weight: bold;
     }
 
+    /* Level Selector */
+    .level-selector {
+        display: flex;
+        justify-content: center;
+        gap: 15px;
+        margin: 20px 0;
+        flex-wrap: wrap;
+    }
+
+    .level-btn {
+        background: rgba(52, 152, 219, 0.3);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-radius: 15px;
+        padding: 12px 20px;
+        color: #ffffff;
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+        font-size: 16px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    .level-btn:hover {
+        background: rgba(41, 128, 185, 0.5);
+        transform: translateY(-2px);
+    }
+
+    .level-btn.active {
+        background: rgba(46, 204, 113, 0.5);
+        box-shadow: 0 0 15px rgba(46, 204, 113, 0.6);
+    }
+
     /* Timer Display */
     .timer-container {
         display: flex;
@@ -369,8 +404,13 @@
 <div class="game-container">
     <h1>🚂 Sắp Xếp Toa Tàu 🚂</h1>
     
+    <div class="level-selector">
+        <button class="level-btn active" id="level1" onclick="changeLevel(1)">Cấp độ 1: Số 1-10</button>
+        <button class="level-btn" id="level2" onclick="changeLevel(2)">Cấp độ 2: Số 11-20</button>
+    </div>
+    
     <div class="instructions">
-        <strong>Hướng dẫn:</strong> Nhấn vào hai toa tàu để đổi chỗ chúng. Mục tiêu là sắp xếp các toa tàu theo thứ tự từ <strong>1 đến 9</strong>, đầu tàu ở bên phải!
+        <strong>Hướng dẫn:</strong> Nhấn vào hai toa tàu để đổi chỗ chúng. Mục tiêu là sắp xếp các toa tàu theo thứ tự từ <strong><span id="minNumber">1</span> đến <span id="maxNumber">9</span></strong>, đầu tàu ở bên phải!
     </div>
 
     <div class="timer-container">
@@ -407,6 +447,7 @@
     let selectedImages = [];
     let selectedIndex = null;
     let gameCompleted = false;
+    let currentLevel = 1;
     
     // Timer variables
     let startTime = null;
@@ -483,6 +524,21 @@
         }
     }
 
+    function changeLevel(level) {
+        currentLevel = level;
+        
+        // Update active button
+        document.getElementById('level1').classList.toggle('active', level === 1);
+        document.getElementById('level2').classList.toggle('active', level === 2);
+        
+        // Update instructions
+        document.getElementById('minNumber').textContent = level === 1 ? '1' : '11';
+        document.getElementById('maxNumber').textContent = level === 1 ? '9' : '20';
+        
+        // Reset and initialize game with new level
+        resetGame();
+    }
+
     function initializeGame() {
         // Random chọn 9 ảnh từ 6 ảnh có sẵn (có thể trùng lặp)
         selectedImages = [];
@@ -491,7 +547,13 @@
             selectedImages.push(carImages[randomIndex]);
         }
         
-        numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+        // Tạo mảng số dựa trên level hiện tại
+        if (currentLevel === 1) {
+            numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+        } else {
+            numbers = [11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
+        }
+        
         numbers.sort(() => Math.random() - 0.5);
         
         selectedIndex = null;
@@ -539,7 +601,10 @@
         numbers.forEach((num, index) => {
             const car = document.createElement("div");
             car.className = "car" + (index === selectedIndex ? " selected" : "");
-            car.style.backgroundImage = `url('${selectedImages[num - 1]}')`;
+            
+            // Sử dụng ảnh dựa trên số (mod 6 để lấy index trong mảng ảnh)
+            const imageIndex = (num % 6 === 0) ? 5 : (num % 6) - 1;
+            car.style.backgroundImage = `url('${selectedImages[imageIndex]}')`;
             car.onclick = () => selectCar(index);
             
             const numberLabel = document.createElement("div");
@@ -594,7 +659,14 @@
     }
 
     function checkWin() {
-        if (numbers.join(",") === "1,2,3,4,5,6,7,8,9") {
+        let correctOrder;
+        if (currentLevel === 1) {
+            correctOrder = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+        } else {
+            correctOrder = [11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
+        }
+        
+        if (numbers.join(",") === correctOrder.join(",")) {
             gameCompleted = true;
             stopTimer();
             updateGamesPlayed();
@@ -643,7 +715,7 @@
                 trainContainer.classList.remove("preparing");
                 trainContainer.classList.add("moving");
                 
-                messageDiv.innerHTML = "🚂💨 Đoàn tàu 9 toa đang khởi hành! Tạm biệt! 💨🚂";
+                messageDiv.innerHTML = "🚂💨 Đoàn tàu " + numbers.length + " toa đang khởi hành! Tạm biệt! 💨🚂";
                 
                 // Final message after train leaves
                 setTimeout(() => {

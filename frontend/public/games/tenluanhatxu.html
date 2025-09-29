@@ -10,6 +10,7 @@
       overflow: hidden;
       background: #000;
       font-family: Arial, sans-serif;
+      cursor: none;
     }
     #ui {
       position: absolute;
@@ -31,12 +32,45 @@
     }
     #phase-indicator {
       position: absolute;
-      top: 60px;
+      top: 120px;
       left: 10px;
       color: #ffff00;
       font-size: 18px;
       z-index: 100;
       text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+    }
+    #control-mode {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      color: white;
+      font-size: 14px;
+      z-index: 100;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+      background: rgba(0,0,0,0.5);
+      padding: 5px 10px;
+      border-radius: 5px;
+    }
+    .custom-cursor {
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      border: 2px solid #00ffff;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      z-index: 1000;
+      box-shadow: 0 0 10px #00ffff;
+    }
+    .cursor-dot {
+      position: absolute;
+      width: 4px;
+      height: 4px;
+      background: #00ffff;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      z-index: 1001;
     }
   </style>
 </head>
@@ -46,15 +80,23 @@
     <div>Sao băng: <span id="meteors">0</span></div>
     <div>Năng lượng: <span id="energy">100</span>%</div>
     <div>Thời gian: <span id="game-time">00:00</span></div>
-</div>
+  </div>
   <div id="phase-indicator">
     <div id="phase-text">Giai đoạn 1: Thu thập xu 1-10</div>
   </div>
   <div id="instructions">
-    <div>Điều khiển: ← → ↑ ↓</div>
+    <div>Điều khiển: ← → ↑ ↓ hoặc di chuột</div>
     <div>Space: Tấn công (GĐ3)</div>
+    <div>Shift: Tăng tốc (tốn năng lượng)</div>
+    <div>C: Chuyển chế độ điều khiển</div>
     <div>Tìm 30 đồng xu trong vũ trụ!</div>
   </div>
+  <div id="control-mode">
+    Chế độ: <span id="mode-display">Bàn phím</span>
+  </div>
+
+  <div class="custom-cursor" id="custom-cursor"></div>
+  <div class="cursor-dot" id="cursor-dot"></div>
 
   <script>
   let player;
@@ -81,16 +123,17 @@
   let lastBlackholeSpawn = 0;
   let blackholeCount = 0;
   let startTime;
-let finishTime;
-let gameDuration = 0;
-let isBoosting = false;
-let boostMultiplier = 1;
-
-  let expandedWorld = false;
-  let finalPhase = false;
+  let finishTime;
+  let gameDuration = 0;
+  let isBoosting = false;
+  let boostMultiplier = 1;
+  let controlMode = 'keyboard'; // 'keyboard' or 'mouse'
+  let mouseControlActive = false;
+  let mouseX = 0;
+  let mouseY = 0;
 
   function preload() {
-    astronautImg = loadImage('phihanhgia.png');
+    astronautImg = loadImage('tenlua.png');
     // Thêm âm thanh nếu có
     // laserSound = loadSound('laser.wav');
     // coinSound = loadSound('coin.wav');
@@ -100,11 +143,30 @@ let boostMultiplier = 1;
     let seconds = floor(ms / 1000) % 60;
     let minutes = floor(ms / 60000);
     return nf(minutes, 2) + ":" + nf(seconds, 2);
-}
+  }
 
   function setup() {
     createCanvas(windowWidth, windowHeight);
     resetGame();
+    
+    // Ẩn con trỏ chuột mặc định
+    document.body.style.cursor = 'none';
+    
+    // Cập nhật vị trí con trỏ tùy chỉnh
+    document.addEventListener('mousemove', function(e) {
+      mouseX = e.clientX;
+      mouseY = e.clientY;
+      
+      const cursor = document.getElementById('custom-cursor');
+      const dot = document.getElementById('cursor-dot');
+      
+      if (cursor && dot) {
+        cursor.style.left = e.clientX + 'px';
+        cursor.style.top = e.clientY + 'px';
+        dot.style.left = e.clientX + 'px';
+        dot.style.top = e.clientY + 'px';
+      }
+    });
   }
 
   function resetGame() {
@@ -125,6 +187,7 @@ let boostMultiplier = 1;
     startTime = millis();
     finishTime = 0;
     gameDuration = 0;
+    controlMode = 'keyboard';
 
     player = {
       x: worldWidth / 2,
@@ -132,11 +195,14 @@ let boostMultiplier = 1;
       size: 120,
       vx: 0,
       vy: 0,
-      thrust: 0.3,
+      thrust: 0.2,
       drag: 0.95,
       trail: [],
+
       lastShot: 0,
-      invincible: false
+      invincible: false,
+      rotation: 0,
+      targetRotation: 0
     };
 
     coins = [];
@@ -331,13 +397,13 @@ let boostMultiplier = 1;
     }
 
     // Trong phần kiểm tra hoàn thành game
-if (score >= 30 && !gameComplete) {
-    gameComplete = true;
-    finishTime = millis();
-    gameDuration = finishTime - startTime;
-    targetZoom = 1;
-    showPhaseMessage(`Hoàn thành trong ${formatTime(gameDuration)}! Nhấn R để chơi lại`);
-}
+    if (score >= 30 && !gameComplete) {
+      gameComplete = true;
+      finishTime = millis();
+      gameDuration = finishTime - startTime;
+      targetZoom = 1;
+      showPhaseMessage(`Hoàn thành trong ${formatTime(gameDuration)}! Nhấn R để chơi lại`);
+    }
 
     // Hiển thị trạng thái thắng/thua
     if (gameComplete || gameOver) {
@@ -443,6 +509,21 @@ if (score >= 30 && !gameComplete) {
       shootLaser();
       player.lastShot = millis();
       energy -= 20;
+    }
+    
+    // Chuyển chế độ điều khiển
+    if (key === 'c' || key === 'C') {
+      toggleControlMode();
+    }
+  }
+
+  function toggleControlMode() {
+    if (controlMode === 'keyboard') {
+      controlMode = 'mouse';
+      document.getElementById('mode-display').textContent = 'Chuột';
+    } else {
+      controlMode = 'keyboard';
+      document.getElementById('mode-display').textContent = 'Bàn phím';
     }
   }
 
@@ -586,10 +667,6 @@ if (score >= 30 && !gameComplete) {
       ellipse(0, 0, bh.size * 1.2);
       
       pop();
-      
-      // Hiển thị thời gian còn lại (debug)
-      // fill(255);
-      // text(floor(bh.life/1000), bh.x, bh.y - bh.size/2 - 10);
     }
   }
 
@@ -726,7 +803,7 @@ if (score >= 30 && !gameComplete) {
   }
 
   function drawPlayer() {
-// Vẽ đuôi tàu vũ trụ với màu khác nhau khi boost
+    // Vẽ đuôi tàu vũ trụ với màu khác nhau khi boost
     if (player.trail.length > 1) {
         for (let i = 0; i < player.trail.length - 1; i++) {
             let alpha = map(i, 0, player.trail.length - 1, 0, 100);
@@ -737,19 +814,11 @@ if (score >= 30 && !gameComplete) {
         }
     }
 
-    // Vẽ đuôi tàu vũ trụ
-    if (player.trail.length > 1) {
-      for (let i = 0; i < player.trail.length - 1; i++) {
-        let alpha = map(i, 0, player.trail.length - 1, 0, 100);
-        stroke(0, 150, 255, alpha);
-        strokeWeight(25);
-        line(player.trail[i].x, player.trail[i].y, 
-             player.trail[i + 1].x, player.trail[i + 1].y);
-      }
-    }
-
     push();
     translate(player.x, player.y);
+    
+    // Xoay phi thuyền theo hướng di chuyển
+    rotate(player.rotation);
     
     // Hiệu ứng bất tử (nếu có)
     if (player.invincible && frameCount % 10 < 5) {
@@ -762,26 +831,11 @@ if (score >= 30 && !gameComplete) {
   }
 
   function updatePlayer() {
-// Xử lý boost khi nhấn Shift
-    isBoosting = keyIsDown(SHIFT) && energy > 0;
-    boostMultiplier = isBoosting ? 2 : 1;
-    
-    if (isBoosting) {
-        energy -= 0.5; // Tiêu hao năng lượng khi boost
-        energy = max(0, energy);
+    if (controlMode === 'keyboard') {
+      updateKeyboardControls();
+    } else {
+      updateMouseControls();
     }
-    
-    // Xử lý input và vật lý bay với boost
-    if (keyIsDown(LEFT_ARROW)) player.vx -= player.thrust * boostMultiplier;
-    if (keyIsDown(RIGHT_ARROW)) player.vx += player.thrust * boostMultiplier;
-    if (keyIsDown(UP_ARROW)) player.vy -= player.thrust * boostMultiplier;
-    if (keyIsDown(DOWN_ARROW)) player.vy += player.thrust * boostMultiplier;
-
-    // Xử lý input và vật lý bay
-    if (keyIsDown(LEFT_ARROW)) player.vx -= player.thrust;
-    if (keyIsDown(RIGHT_ARROW)) player.vx += player.thrust;
-    if (keyIsDown(UP_ARROW)) player.vy -= player.thrust;
-    if (keyIsDown(DOWN_ARROW)) player.vy += player.thrust;
     
     // Áp dụng lực cản
     player.vx *= player.drag;
@@ -807,6 +861,61 @@ if (score >= 30 && !gameComplete) {
     if (player.trail.length > 20) {
       player.trail.shift();
     }
+    
+    // Cập nhật góc xoay của phi thuyền
+    if (player.vx !== 0 || player.vy !== 0) {
+      player.targetRotation = atan2(player.vy, player.vx);
+    }
+    
+    // Làm mượt chuyển động xoay
+    player.rotation = lerp(player.rotation, player.targetRotation, 0.1);
+  }
+
+  function updateKeyboardControls() {
+    // Xử lý boost khi nhấn Shift
+    isBoosting = keyIsDown(SHIFT) && energy > 0;
+    boostMultiplier = isBoosting ? 3 : 1;
+    
+    if (isBoosting) {
+        energy -= 0.5; // Tiêu hao năng lượng khi boost
+        energy = max(0, energy);
+    }
+    
+    // Xử lý input và vật lý bay với boost
+    if (keyIsDown(LEFT_ARROW)) player.vx -= player.thrust * boostMultiplier;
+    if (keyIsDown(RIGHT_ARROW)) player.vx += player.thrust * boostMultiplier;
+    if (keyIsDown(UP_ARROW)) player.vy -= player.thrust * boostMultiplier;
+    if (keyIsDown(DOWN_ARROW)) player.vy += player.thrust * boostMultiplier;
+  }
+
+  function updateMouseControls() {
+    // Tính toán vị trí chuột trong hệ tọa độ thế giới
+    let mouseWorldX = player.x - (width/cameraZoom)/2 + mouseX/cameraZoom;
+    let mouseWorldY = player.y - (height/cameraZoom)/2 + mouseY/cameraZoom;
+    
+    // Tính khoảng cách và hướng đến chuột
+    let dx = mouseWorldX - player.x;
+    let dy = mouseWorldY - player.y;
+    let distance = sqrt(dx*dx + dy*dy);
+    
+    // Xử lý boost khi nhấn Shift
+    isBoosting = keyIsDown(SHIFT) && energy > 0;
+    boostMultiplier = isBoosting ? 3 : 1;
+    
+    if (isBoosting) {
+        energy -= 0.5; // Tiêu hao năng lượng khi boost
+        energy = max(0, energy);
+    }
+    
+    // Di chuyển về phía chuột nếu đủ xa
+    if (distance > 20) {
+      let speed = player.thrust * boostMultiplier;
+      player.vx += (dx / distance) * speed;
+      player.vy += (dy / distance) * speed;
+    }
+    
+    // Cập nhật góc xoay để nhìn về chuột
+    player.targetRotation = atan2(dy, dx);
   }
 
   function updateUI() {
@@ -826,7 +935,7 @@ if (score >= 30 && !gameComplete) {
     document.getElementById('phase-text').textContent = phaseText;
     
     // Cập nhật thời gian chơi
- if (!gameComplete && !gameOver) {
+    if (!gameComplete && !gameOver) {
         gameDuration = millis() - startTime;
     }
     document.getElementById('game-time').textContent = formatTime(gameDuration);

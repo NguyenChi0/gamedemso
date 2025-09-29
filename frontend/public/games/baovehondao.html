@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <title>Flying + Stable Movement (Knight) - Ném Thương vs Tàu Chiến</title>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    canvas { display: block; }
+    .info {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      color: white;
+      background: rgba(0,0,0,0.6);
+      padding: 6px 10px;
+      font-family: sans-serif;
+      font-size: 13px;
+      border-radius: 5px;
+      z-index: 1000;
+    }
+    .controls {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      color: white;
+      background: rgba(0,0,0,0.6);
+      padding: 6px 10px;
+      font-family: sans-serif;
+      font-size: 13px;
+      border-radius: 5px;
+      z-index: 1000;
+    }
+    .crosshair {
+      position: absolute;
+      top: 54%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      z-index: 1000;
+    }
+    .crosshair::before,
+    .crosshair::after {
+      content: '';
+      position: absolute;
+      background: rgba(255, 255, 255, 0.8);
+      box-shadow: 0 0 2px rgba(0, 0, 0, 0.8);
+    }
+    .crosshair::before {
+      width: 20px;
+      height: 2px;
+      top: -1px;
+      left: -10px;
+    }
+    .crosshair::after {
+      width: 2px;
+      height: 20px;
+      top: -10px;
+      left: -1px;
+    }
+    .crosshair-dot {
+      width: 4px;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.9);
+      border-radius: 50%;
+      position: absolute;
+      top: -2px;
+      left: -2px;
+      box-shadow: 0 0 3px rgba(0, 0, 0, 0.8);
+    }
+    .game-over {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: white;
+      background: rgba(0,0,0,0.8);
+      padding: 20px;
+      font-family: sans-serif;
+      font-size: 24px;
+      border-radius: 10px;
+      text-align: center;
+      display: none;
+      z-index: 2000;
+    }
+    .health-bar {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      width: 200px;
+      height: 20px;
+      background: rgba(0,0,0,0.6);
+      border-radius: 5px;
+      overflow: hidden;
+      z-index: 1000;
+    }
+    .health-fill {
+      height: 100%;
+      width: 100%;
+      background: linear-gradient(to right, #ff0000, #ffff00, #00ff00);
+      transition: width 0.3s;
+    }
+    .ship-health {
+      position: absolute;
+      bottom: 50px;
+      left: 10px;
+      color: white;
+      background: rgba(0,0,0,0.6);
+      padding: 6px 10px;
+      font-family: sans-serif;
+      font-size: 13px;
+      border-radius: 5px;
+      z-index: 1000;
+    }
+  </style>
+</head>
+<body>
+  <div class="info">Click vào canvas để lock chuột — WASD: di chuyển — Space/↑: lên — ↓: xuống — Esc để unlock</div>
+  <div class="controls">
+    Click chuột trái để ném thương thẳng theo hướng nhìn
+    <br>Killed: <span id="killCounter">0</span> quái vật
+    <br>Health: <span id="playerHealth">3</span> / 3
+  </div>
+  
+  <div class="health-bar">
+    <div class="health-fill" id="playerHealthBar" style="width: 100%;"></div>
+  </div>
+  
+  <div class="ship-health">
+    Target Ship: <span id="targetShip">1</span> | Health: <span id="shipHealth">100</span> / 100
+  </div>
+
+  <div class="game-over" id="gameOver">
+    Game Over!<br>
+    <button id="restartButton" style="margin-top: 10px; padding: 5px 10px;">Restart</button>
+  </div>
+
+  <!-- Crosshair tâm ngắm -->
+  <div class="crosshair">
+    <div class="crosshair-dot"></div>
+  </div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "GLTFLoader": "https://unpkg.com/three@0.160.0/examples/jsm/loaders/GLTFLoader.js"
+    }
+  }
+  </script>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { GLTFLoader } from 'GLTFLoader';
+
+    // Scene / Renderer / Camera
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xa0c8ff);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 5000);
+    camera.position.set(0, 40, -18);
+
+    const hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 1.2);
+    hemi.position.set(0, 200, 0);
+    scene.add(hemi);
+    const dir = new THREE.DirectionalLight(0xffffff, 1.0);
+    dir.position.set(50, 200, 100);
+    dir.castShadow = true;
+    scene.add(dir);
+
+    // Raycaster dùng cho aim (tâm màn hình)
+    const raycaster = new THREE.Raycaster();
+
+    // Nhân vật: knight.glb
+    let character;
+    const loader = new GLTFLoader();
+    
+    // Biến trạng thái game
+    let playerHealth = 3;
+    let isGameOver = false;
+    let targetShipNumber = 1;
+    let shipHealth = 100;
+    
+    // Cập nhật UI
+    function updateUI() {
+      document.getElementById('playerHealth').textContent = playerHealth;
+      document.getElementById('playerHealthBar').style.width = `${(playerHealth / 3) * 100}%`;
+      document.getElementById('targetShip').textContent = targetShipNumber;
+      document.getElementById('shipHealth').textContent = shipHealth;
+    }
+    
+    // Game over
+    function gameOver() {
+      isGameOver = true;
+      document.getElementById('gameOver').style.display = 'block';
+      document.exitPointerLock();
+    }
+    
+    // Restart game
+    document.getElementById('restartButton').addEventListener('click', () => {
+      location.reload();
+    });
+    
+    loader.load('knight.glb', (gltf) => {
+      character = gltf.scene;
+      character.traverse((obj) => {
+        if (obj.isMesh) {
+          obj.castShadow = true;
+          obj.receiveShadow = true;
+        }
+      });
+      // Thu nhỏ lại nhiều hơn
+      character.scale.set(0.05, 0.05, 0.05);
+      // Đặt vị trí ban đầu
+      character.position.set(200, 200, -200);
+      // Quay lưng về phía màn hình
+      character.rotation.set(0, Math.PI, 0);
+
+      scene.add(character);
+      
+      // Spawn quái vật sau khi nhân vật được tải
+      setTimeout(() => spawnMonsters(), 1000);
+    }, undefined, (err) => console.error('Load knight error', err));
+
+    // Load map (nếu có)
+    loader.load('sea_keep_lonely_watcher.glb', (gltf) => {
+      const envRoot = gltf.scene;
+      envRoot.traverse((obj) => {
+        if (obj.isMesh) {
+          obj.castShadow = true;
+          obj.receiveShadow = true;
+          if (obj.material) {
+            obj.material.depthWrite = true;
+            obj.material.depthTest = true;
+            if (obj.material.transparent) obj.material.transparent = false;
+            obj.material.polygonOffset = true;
+            obj.material.polygonOffsetFactor = 1;
+            obj.material.polygonOffsetUnits = 1;
+          }
+        }
+      });
+      scene.add(envRoot);
+    }, undefined, (err) => console.warn('Load map error', err));
+
+    // Input
+    const keys = {};
+    window.addEventListener('keydown', (e) => {
+      keys[e.code] = true;
+      if (['Space','ArrowUp','ArrowDown'].includes(e.code)) e.preventDefault();
+    });
+    window.addEventListener('keyup', (e) => keys[e.code] = false);
+
+    // Mouse look
+    let yaw = 0;
+    let pitch = 0;
+    const mouseSensitivity = 0.0025;
+    renderer.domElement.addEventListener('click', () => {
+      if (!isGameOver) {
+        renderer.domElement.requestPointerLock();
+      }
+    });
+    window.addEventListener('mousemove', (e) => {
+      if (document.pointerLockElement === renderer.domElement && !isGameOver) {
+        yaw -= e.movementX * mouseSensitivity;
+        pitch -= e.movementY * mouseSensitivity;
+      }
+    });
+
+    // Movement physics
+    const MAX_SPEED = 60;
+    const ACCEL = 20.0;
+    const VERT_MAX = 40;
+    const VERT_ACCEL = 18.0;
+    const CAMERA_SMOOTH = 10.0;
+
+    const velocity = new THREE.Vector3(0, 0, 0);
+    let velY = 0;
+
+    const clock = new THREE.Clock();
+
+    // Resize
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth/window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // Hệ thống vũ khí
+    const spears = []; // Mảng lưu trữ các cây thương
+    const SPEAR_SPEED = 300; // Tăng tốc độ thương
+    const MAX_SPEARS = 20; // Tăng số lượng thương tối đa
+    let spearCount = 0; // Đếm số thương đã ném
+    
+    // Hệ thống đạn của tàu
+    const cannonBalls = [];
+    const CANNON_BALL_SPEED = 100;
+    let lastCannonFireTime = 0;
+    const CANNON_FIRE_INTERVAL = 10000; // 10 giây
+    
+    // Tạo hiệu ứng nổ
+    function createExplosion(position) {
+      const particles = [];
+      for (let i = 0; i < 10; i++) {
+        const particleGeometry = new THREE.SphereGeometry(0.3, 6, 4);
+        const particleMaterial = new THREE.MeshPhongMaterial({ 
+          color: new THREE.Color().setHSL(Math.random() * 0.1, 1, 0.5) // Màu cam/vàng
+        });
+        const particle = new THREE.Mesh(particleGeometry, particleMaterial);
+        particle.position.copy(position);
+        
+        const velocity = new THREE.Vector3(
+          (Math.random() - 0.5) * 40,
+          Math.random() * 30 + 10,
+          (Math.random() - 0.5) * 40
+        );
+        
+        scene.add(particle);
+        particles.push({ mesh: particle, velocity, life: 1 });
+      }
+      
+      // Cập nhật và xóa particles
+      function updateParticles() {
+        for (let i = particles.length - 1; i >= 0; i--) {
+          const p = particles[i];
+          p.mesh.position.add(p.velocity.clone().multiplyScalar(0.016));
+          p.velocity.y -= 30 * 0.016; // Gravity
+          p.life -= 0.016;
+          
+          if (p.life <= 0) {
+            scene.remove(p.mesh);
+            particles.splice(i, 1);
+          }
+        }
+        
+        if (particles.length > 0) {
+          requestAnimationFrame(updateParticles);
+        }
+      }
+      updateParticles();
+    }
+    
+    // Tạo mô hình thương
+    function createSpear() {
+      const spearGroup = new THREE.Group();
+      
+      // Thân thương (chiều dọc theo trục Y)
+      const shaftGeometry = new THREE.CylinderGeometry(0.4, 0.4, 15, 15);
+      const shaftMaterial = new THREE.MeshPhongMaterial({ color: 0x8B4513 });
+      const shaft = new THREE.Mesh(shaftGeometry, shaftMaterial);
+      shaft.position.y = 0;
+      spearGroup.add(shaft);
+      
+      // Đầu thương (nằm ở phía dương Y)
+      const headGeometry = new THREE.ConeGeometry(0.6, 4, 14);
+      const headMaterial = new THREE.MeshPhongMaterial({ color: 0x808080 });
+      const head = new THREE.Mesh(headGeometry, headMaterial);
+      head.position.y = 8;
+      spearGroup.add(head);
+      
+      // Đuôi thương
+      const tailGeometry = new THREE.ConeGeometry(0.2, 2, 8);
+      const tailMaterial = new THREE.MeshPhongMaterial({ color: 0x654321 });
+      const tail = new THREE.Mesh(tailGeometry, tailMaterial);
+      tail.position.y = -7.75;
+      tail.rotation.x = Math.PI;
+      spearGroup.add(tail);
+      
+      return spearGroup;
+    }
+    
+    // Tạo đạn pháo (hình cầu)
+    function createCannonBall() {
+      const geometry = new THREE.SphereGeometry(3, 16, 16);
+      const material = new THREE.MeshPhongMaterial({ color: 0x000000 });
+      const cannonBall = new THREE.Mesh(geometry, material);
+      return cannonBall;
+    }
+    
+    // Hàm tính hướng ném thương chính xác: dùng Raycaster từ tâm màn hình (crosshair)
+    function getThrowDirection() {
+      // Raycaster setFromCamera với (0,0) -> chính giữa màn hình
+      raycaster.setFromCamera({ x: 0, y: 0 }, camera);
+      return raycaster.ray.direction.clone().normalize();
+    }
+    
+    // Hàm ném thương - BAY THEO HƯỚNG TÂM NGẮM
+    function throwSpear() {
+      if (!character || isGameOver) return;
+      if (spearCount >= MAX_SPEARS) return;
+      
+      const spear = createSpear();
+      
+      // Hướng ném lấy từ camera (chính giữa màn hình)
+      const throwDirection = getThrowDirection(); // unit vector
+      
+      // Spawn thương phía trước nhân vật, nhưng bay theo hướng của camera (crosshair)
+      const spawnOffset = new THREE.Vector3(0, 2, 0); // nâng lên 2 để không chạm đất
+      const spawn = character.position.clone().add(spawnOffset).add(throwDirection.clone().multiplyScalar(3));
+      spear.position.copy(spawn);
+      
+      // Định hướng thương nhìn theo hướng bay (lookAt)
+      spear.lookAt(spawn.clone().add(throwDirection));
+      // Do mô hình thương nằm theo trục Y, xoay -90 độ để mũi trỏ ra hướng front.
+      spear.rotateX(-Math.PI / 2);
+      
+      scene.add(spear);
+      spears.push({
+        mesh: spear,
+        velocity: throwDirection.clone().multiplyScalar(SPEAR_SPEED),
+        lifeTime: 0,
+        maxLifeTime: 8 // Tăng thời gian tồn tại
+      });
+      
+      spearCount++;
+    }
+    
+    // Xử lý click chuột để ném thương
+    window.addEventListener('mousedown', (e) => {
+      if (e.button === 0 && document.pointerLockElement === renderer.domElement && !isGameOver) {
+        throwSpear();
+      }
+    });
+    
+    // Cập nhật vị trí các thương
+    function updateSpears(dt) {
+      for (let i = spears.length - 1; i >= 0; i--) {
+        const spear = spears[i];
+        
+        // Di chuyển thương theo vận tốc
+        spear.mesh.position.add(spear.velocity.clone().multiplyScalar(dt));
+        spear.lifeTime += dt;
+        
+        // Hiệu ứng xoay nhẹ khi bay
+        spear.mesh.rotateZ(dt * 10);
+        
+        // Kiểm tra va chạm với tàu
+        let hitShip = false;
+        for (let ship of ships) {
+          if (ship.mesh && ship.health > 0 && ship.number === targetShipNumber) {
+            const distance = spear.mesh.position.distanceTo(ship.mesh.position);
+            if (distance < 30) { // Khoảng cách va chạm
+              // Gây sát thương cho tàu
+              ship.health -= 10;
+              shipHealth = ship.health;
+              updateUI();
+              
+              // Tạo hiệu ứng nổ
+              createExplosion(spear.mesh.position);
+              
+              // Kiểm tra nếu tàu bị tiêu diệt
+              if (ship.health <= 0) {
+                // Chuyển sang tàu tiếp theo
+                targetShipNumber++;
+                if (targetShipNumber > 10) targetShipNumber = 1; // Quay lại tàu 1 nếu đã hết
+                
+                // Cập nhật máu của tàu mới
+                const nextShip = ships.find(s => s.number === targetShipNumber);
+                shipHealth = nextShip ? nextShip.health : 100;
+                updateUI();
+              }
+              
+              hitShip = true;
+              break;
+            }
+          }
+        }
+        
+        // Xóa thương nếu hết thời gian, ra khỏi tầm nhìn hoặc trúng tàu
+        if (spear.lifeTime > spear.maxLifeTime || 
+            spear.mesh.position.distanceTo(character.position) > 800 ||
+            hitShip) {
+          scene.remove(spear.mesh);
+          spears.splice(i, 1);
+          spearCount--;
+        }
+      }
+    }
+    
+    // Hàm bắn đạn từ tàu
+    function fireCannonFromShips() {
+      if (!character || isGameOver) return;
+      
+      // Chọn ngẫu nhiên 3 tàu để bắn
+      const activeShips = ships.filter(ship => ship.mesh && ship.health > 0);
+      if (activeShips.length === 0) return;
+      
+      // Chọn ngẫu nhiên 3 tàu (hoặc ít hơn nếu không đủ)
+      const shipsToFire = [];
+      const indices = [];
+      
+      while (indices.length < Math.min(3, activeShips.length)) {
+        const randomIndex = Math.floor(Math.random() * activeShips.length);
+        if (!indices.includes(randomIndex)) {
+          indices.push(randomIndex);
+          shipsToFire.push(activeShips[randomIndex]);
+        }
+      }
+      
+      // Mỗi tàu bắn 1 viên đạn về phía nhân vật
+      for (let ship of shipsToFire) {
+        const cannonBall = createCannonBall();
+        cannonBall.position.copy(ship.mesh.position);
+        
+        // Hướng bắn về phía nhân vật
+        const direction = character.position.clone().sub(ship.mesh.position).normalize();
+        
+        scene.add(cannonBall);
+        cannonBalls.push({
+          mesh: cannonBall,
+          velocity: direction.multiplyScalar(CANNON_BALL_SPEED),
+          lifeTime: 0,
+          maxLifeTime: 15
+        });
+      }
+    }
+    
+    // Cập nhật vị trí đạn pháo
+    function updateCannonBalls(dt) {
+      for (let i = cannonBalls.length - 1; i >= 0; i--) {
+        const cannonBall = cannonBalls[i];
+        
+        // Di chuyển đạn theo vận tốc
+        cannonBall.mesh.position.add(cannonBall.velocity.clone().multiplyScalar(dt));
+        cannonBall.lifeTime += dt;
+        
+        // Kiểm tra va chạm với nhân vật
+        if (character) {
+          const distance = cannonBall.mesh.position.distanceTo(character.position);
+          if (distance < 10) { // Khoảng cách va chạm
+            // Trừ máu nhân vật
+            playerHealth--;
+            updateUI();
+            
+            // Tạo hiệu ứng nổ
+            createExplosion(cannonBall.mesh.position);
+            
+            // Kiểm tra game over
+            if (playerHealth <= 0) {
+              gameOver();
+            }
+            
+            // Xóa đạn
+            scene.remove(cannonBall.mesh);
+            cannonBalls.splice(i, 1);
+            continue;
+          }
+        }
+        
+        // Xóa đạn nếu hết thời gian hoặc ra khỏi tầm nhìn
+        if (cannonBall.lifeTime > cannonBall.maxLifeTime || 
+            cannonBall.mesh.position.distanceTo(character.position) > 800) {
+          scene.remove(cannonBall.mesh);
+          cannonBalls.splice(i, 1);
+        }
+      }
+    }
+
+    // 🚢 Tạo nhiều tàu bơi quanh đảo
+    const ships = [];
+    const NUM_SHIPS = 10;
+    const shipRadiusBase = 350;
+
+    for (let i = 1; i <= NUM_SHIPS; i++) {
+      loader.load('ship.glb', (gltf) => {
+        const ship = gltf.scene;
+        ship.scale.set(0.01, 0.01, 0.01);
+
+        const angle = (i / NUM_SHIPS) * Math.PI * 2;
+        const radius = shipRadiusBase + i * 20;
+        ship.position.set(Math.cos(angle) * radius, 0, Math.sin(angle) * radius);
+
+        // 🏷️ Canvas vẽ số
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = 256;
+        canvas.height = 256;
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 150px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(i.toString(), 128, 128);
+
+        const tex = new THREE.CanvasTexture(canvas);
+        const labelMat = new THREE.SpriteMaterial({ map: tex, transparent: true });
+        const label = new THREE.Sprite(labelMat);
+        label.scale.set(40, 40, 1);   // luôn to, không bị scale theo tàu
+        scene.add(label);
+
+        scene.add(ship);
+
+        ships.push({
+          mesh: ship,
+          label: label,
+          angle: angle,
+          radius: radius,
+          speed: 0.001 + i * 0.01,
+          number: i,
+          health: 100
+        });
+        
+        // Cập nhật UI lần đầu
+        updateUI();
+      });
+    }
+
+    function smoothingFactor(rate, dt) {
+      return 1 - Math.exp(-rate * dt);
+    }
+
+    // Main loop
+    function animate() {
+      if (isGameOver) return;
+      
+      requestAnimationFrame(animate);
+      const dt = Math.min(clock.getDelta(), 0.05);
+      
+      // Kiểm tra thời gian bắn đạn
+      const currentTime = Date.now();
+      if (currentTime - lastCannonFireTime > CANNON_FIRE_INTERVAL) {
+        fireCannonFromShips();
+        lastCannonFireTime = currentTime;
+      }
+
+      if (character) {
+        // yaw xoay nhân vật
+        character.rotation.set(0, yaw, 0);
+
+        // Input local
+        let inputX = 0, inputZ = 0;
+        if (keys['KeyW']) inputZ -= 1;
+        if (keys['KeyS']) inputZ += 1;
+        if (keys['KeyA']) inputX -= 1;
+        if (keys['KeyD']) inputX += 1;
+
+        const inputLen = Math.hypot(inputX, inputZ);
+        if (inputLen > 0) {
+          inputX /= inputLen;
+          inputZ /= inputLen;
+        }
+
+        const localInput = new THREE.Vector3(-inputX, 0, -inputZ);
+        const worldDir = localInput.applyQuaternion(character.quaternion);
+
+        const targetVelXZ = new THREE.Vector3(worldDir.x * MAX_SPEED, 0, worldDir.z * MAX_SPEED);
+
+        const s = smoothingFactor(ACCEL, dt);
+        velocity.x = THREE.MathUtils.lerp(velocity.x, targetVelXZ.x, s);
+        velocity.z = THREE.MathUtils.lerp(velocity.z, targetVelXZ.z, s);
+
+        let targetVy = 0;
+        if (keys['Space'] || keys['ArrowUp']) targetVy = VERT_MAX;
+        else if (keys['ArrowDown']) targetVy = -VERT_MAX;
+
+        const sv = smoothingFactor(VERT_ACCEL, dt);
+        velY = THREE.MathUtils.lerp(velY, targetVy, sv);
+
+        const moveStep = velocity.clone().multiplyScalar(dt);
+        character.position.add(moveStep);
+        character.position.y += velY * dt;
+
+        if (character.position.y < -200) character.position.y = -200;
+
+        const camOffset = new THREE.Vector3(-6, 20, -32);
+        const camOffsetWorld = camOffset.clone().applyQuaternion(character.quaternion);
+        const desiredCamPos = character.position.clone().add(camOffsetWorld);
+
+        const cs = smoothingFactor(CAMERA_SMOOTH, dt);
+        camera.position.lerp(desiredCamPos, cs);
+
+        const lookTarget = character.position.clone().add(new THREE.Vector3(0, pitch * 10, 0));
+        camera.lookAt(lookTarget);
+        
+        // Cập nhật thương
+        updateSpears(dt);
+        
+        // Cập nhật đạn pháo
+        updateCannonBalls(dt);
+
+        // 🚢 Update tàu
+        for (let s of ships) {
+          if (!s.mesh) continue;
+          
+          s.angle += dt * s.speed;
+          s.mesh.position.set(
+            Math.cos(s.angle) * s.radius,
+            0,
+            Math.sin(s.angle) * s.radius
+          );
+          s.mesh.lookAt(0, 0, 0);
+          s.mesh.rotateY(Math.PI / 2);
+
+          // 📌 cập nhật số ở trên tàu
+          if (s.label) {
+            s.label.position.copy(s.mesh.position).add(new THREE.Vector3(0, 30, 0));
+          }
+        }
+      }
+
+      renderer.render(scene, camera);
+    }
+
+    animate();
+  </script>
+</body>
+</html>
