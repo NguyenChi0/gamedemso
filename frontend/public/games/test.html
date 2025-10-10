@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Game Đếm Số 1→10</title>
+<style>
+  :root{
+    --bg:#0f1724;
+    --card:#0b1220;
+    --accent:#10b981;
+    --muted:#94a3b8;
+    --danger:#ef4444;
+    --glass: rgba(255,255,255,0.03);
+  }
+  body{
+    font-family: Inter, system-ui, Arial;
+    background: linear-gradient(180deg,#071029 0%, #081a2b 100%);
+    color:#e6eef8;
+    margin:0;
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:24px;
+  }
+  .card{
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    border-radius:12px;
+    padding:20px;
+    width:420px;
+    box-shadow: 0 8px 30px rgba(2,6,23,0.7);
+    border: 1px solid rgba(255,255,255,0.04);
+  }
+  h1{
+    margin:0 0 8px 0;
+    font-size:20px;
+  }
+  .meta{
+    display:flex;
+    gap:10px;
+    align-items:center;
+    margin-bottom:12px;
+  }
+  .pill{
+    background:var(--glass);
+    padding:8px 10px;
+    border-radius:10px;
+    font-size:14px;
+    color:var(--muted);
+    min-width:90px;
+    text-align:center;
+  }
+  .target{
+    font-weight:700;
+    color:var(--accent);
+    font-size:18px;
+  }
+  .controls{
+    display:flex;
+    gap:8px;
+    margin-bottom:14px;
+  }
+  button.btn{
+    flex:1;
+    padding:8px 10px;
+    border-radius:10px;
+    border:0;
+    cursor:pointer;
+    font-weight:600;
+    background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+    color:inherit;
+    border:1px solid rgba(255,255,255,0.04);
+  }
+  button.btn:active{ transform: translateY(1px); }
+  .grid{
+    display:grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap:8px;
+  }
+  .num-btn{
+    background:transparent;
+    border-radius:8px;
+    padding:14px 8px;
+    font-size:18px;
+    font-weight:700;
+    border:1px solid rgba(255,255,255,0.06);
+    cursor:pointer;
+    transition: all .12s ease;
+    color: #dbeafe;
+  }
+  .num-btn:hover{ transform: translateY(-3px); box-shadow: 0 6px 18px rgba(2,6,23,0.6); }
+  .num-btn.correct{
+    background: linear-gradient(90deg, rgba(16,185,129,0.12), rgba(16,185,129,0.06));
+    border-color: rgba(16,185,129,0.6);
+    color: var(--accent);
+    cursor: default;
+  }
+  .num-btn.wrong{
+    animation:shake .35s;
+    background: linear-gradient(90deg, rgba(239,68,68,0.08), rgba(239,68,68,0.04));
+    border-color: rgba(239,68,68,0.6);
+    color: var(--danger);
+  }
+  @keyframes shake {
+    0%{ transform: translateX(0); }
+    20%{ transform: translateX(-6px); }
+    40%{ transform: translateX(6px); }
+    60%{ transform: translateX(-4px); }
+    80%{ transform: translateX(4px); }
+    100%{ transform: translateX(0); }
+  }
+  .footer{
+    margin-top:12px;
+    font-size:13px;
+    color:var(--muted);
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+  .result{
+    margin-top:12px;
+    padding:10px;
+    border-radius:8px;
+    background: rgba(255,255,255,0.02);
+    border:1px solid rgba(255,255,255,0.03);
+    text-align:center;
+    font-weight:700;
+  }
+  .hidden{ display:none; }
+</style>
+</head>
+<body>
+  <div class="card" role="application" aria-label="Game đếm số 1 đến 10">
+    <h1>Game: Đếm số 1 → 10</h1>
+    <div class="meta">
+      <div class="pill">Mục tiêu: <span id="target" class="target">1</span></div>
+      <div class="pill">Điểm: <span id="score">0</span></div>
+      <div class="pill">Thời gian: <span id="time">0.00s</span></div>
+    </div>
+
+    <div class="controls">
+      <button id="startBtn" class="btn">Start</button>
+      <button id="resetBtn" class="btn">Reset</button>
+    </div>
+
+    <div class="grid" id="grid" aria-live="polite">
+      <!-- các nút số sẽ được render ở đây -->
+    </div>
+
+    <div class="result hidden" id="resultBox" role="status" aria-atomic="true">
+      <!-- kết quả hiện ra ở đây -->
+    </div>
+
+    <div class="footer">
+      <div>Nhấn các số theo thứ tự. Mỗi lần đúng +10 điểm.</div>
+      <div style="opacity:.8">Simple version</div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  const gridEl = document.getElementById('grid');
+  const targetEl = document.getElementById('target');
+  const scoreEl = document.getElementById('score');
+  const timeEl = document.getElementById('time');
+  const startBtn = document.getElementById('startBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const resultBox = document.getElementById('resultBox');
+
+  let numbers = [];
+  let current = 1;
+  let score = 0;
+  let running = false;
+  let startTime = null;
+  let timerId = null;
+
+  function shuffle(arr){
+    for(let i = arr.length - 1; i > 0; i--){
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  function renderGrid(){
+    gridEl.innerHTML = '';
+    numbers.forEach(n => {
+      const btn = document.createElement('button');
+      btn.className = 'num-btn';
+      btn.innerText = n;
+      btn.setAttribute('data-n', n);
+      btn.addEventListener('click', onNumberClick);
+      btn.disabled = false;
+      gridEl.appendChild(btn);
+    });
+  }
+
+  function startTimer(){
+    if (running) return;
+    running = true;
+    startTime = performance.now();
+    timerId = setInterval(()=> {
+      const elapsed = (performance.now() - startTime) / 1000;
+      timeEl.innerText = elapsed.toFixed(2) + 's';
+    }, 50);
+  }
+
+  function stopTimer(){
+    running = false;
+    if (timerId) {
+      clearInterval(timerId);
+      timerId = null;
+    }
+  }
+
+  function resetGame(){
+    stopTimer();
+    numbers = shuffle([...Array(10)].map((_,i)=>i+1));
+    current = 1;
+    score = 0;
+    startTime = null;
+    timeEl.innerText = '0.00s';
+    scoreEl.innerText = score;
+    targetEl.innerText = current;
+    resultBox.classList.add('hidden');
+    renderGrid();
+  }
+
+
+
+
+
+
+  function endGame(){
+  stopTimer();
+  const elapsed = startTime ? (performance.now() - startTime)/1000 : 0;
+  resultBox.classList.remove('hidden');
+  resultBox.innerHTML = `🎉 Hoàn thành! Điểm: <span style="color:var(--accent)">${score}</span> — Thời gian: <strong>${elapsed.toFixed(2)}s</strong>`;
+  Array.from(gridEl.querySelectorAll('button')).forEach(b => b.disabled = true);
+
+  // 🟢 GỬI ĐIỂM LÊN SERVER
+  const username = localStorage.getItem('username') || prompt("Nhập tên người chơi của bạn:");
+  if (username) {
+    localStorage.setItem('username', username); // lưu để lần sau khỏi hỏi lại
+    fetch("http://210.245.52.119/api_gamedemso/api/scores/save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        username: username,
+        gameId: 16,          // id game trong bảng games, tùy bạn đặt
+        score: score,
+        timeTaken: elapsed
+      })
+    })
+    .then(res => res.json())
+    .then(data => {
+      console.log("Kết quả lưu điểm:", data);
+      if (data.success) {
+        resultBox.innerHTML += "<br><span style='color:#10b981'>✅ Điểm đã được lưu!</span>";
+      } else {
+        resultBox.innerHTML += "<br><span style='color:#ef4444'>❌ Lưu điểm thất bại: " + data.message + "</span>";
+      }
+    })
+    .catch(err => {
+      console.error("Lỗi lưu điểm:", err);
+      resultBox.innerHTML += "<br><span style='color:#ef4444'>⚠️ Không kết nối được server.</span>";
+    });
+  } else {
+    resultBox.innerHTML += "<br><span style='color:#facc15'>⚠️ Không lưu điểm (chưa nhập tên).</span>";
+  }
+}
+
+
+
+
+
+
+
+
+  function onNumberClick(e){
+    const btn = e.currentTarget;
+    const n = Number(btn.getAttribute('data-n'));
+    // nếu chưa bắt đầu, start timer on first click
+    if (!running) startTimer();
+
+    if (n === current){
+      // đúng
+      score += 10;
+      scoreEl.innerText = score;
+      btn.classList.add('correct');
+      btn.disabled = true;
+      current += 1;
+      if (current <= 10){
+        targetEl.innerText = current;
+      } else {
+        targetEl.innerText = '-';
+        endGame();
+      }
+    } else {
+      // sai -> feedback nhẹ
+      btn.classList.add('wrong');
+      setTimeout(()=> btn.classList.remove('wrong'), 300);
+      // không trừ điểm theo yêu cầu; nếu muốn trừ, chỉnh ở đây
+    }
+  }
+
+  // nút Start
+  startBtn.addEventListener('click', ()=> {
+    // nếu đã hoàn thành, reset trước
+    if (current > 10) resetGame();
+    startTimer();
+  });
+
+  // nút Reset
+  resetBtn.addEventListener('click', resetGame);
+
+  // khởi tạo lần đầu
+  resetGame();
+
+  // keyboard support: phím số 1..9,0(10)
+  window.addEventListener('keydown', (ev)=>{
+    const key = ev.key;
+    let val = null;
+    if (key >= '1' && key <= '9') val = Number(key);
+    else if (key === '0') val = 10;
+    if (val !== null){
+      const btn = gridEl.querySelector('button[data-n="'+val+'"]');
+      if (btn && !btn.disabled) btn.click();
+    }
+  });
+
+})();
+</script>
+</body>
+</html>

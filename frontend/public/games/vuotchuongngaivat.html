@@ -59,6 +59,50 @@
       font-size: 24px;
       font-weight: bold;
     }
+    
+    #result-box {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: rgba(0, 0, 0, 0.9);
+      color: white;
+      padding: 30px;
+      border-radius: 15px;
+      z-index: 30;
+      text-align: center;
+      display: none;
+      font-size: 24px;
+      font-weight: bold;
+      width: 80%;
+      max-width: 500px;
+    }
+    
+    .hidden {
+      display: none !important;
+    }
+    
+    #score-display {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background-color: rgba(0, 0, 0, 0.5);
+      color: white;
+      padding: 10px;
+      border-radius: 5px;
+      z-index: 10;
+    }
+    
+    #timer-display {
+      position: absolute;
+      top: 10px;
+      right: 150px;
+      background-color: rgba(0, 0, 0, 0.5);
+      color: white;
+      padding: 10px;
+      border-radius: 5px;
+      z-index: 10;
+    }
   </style>
 </head>
 <body>
@@ -68,11 +112,20 @@
       <p>Mức hiện tại: <span id="current-level">1</span>/50</p>
     </div>
     
+    <div id="timer-display">
+      <p>Thời gian: <span id="timer">0.00</span>s</p>
+    </div>
+    
+    <div id="score-display">
+      <p>Điểm: <span id="score">0</span></p>
+    </div>
+    
     <div id="instructions">
       <p>Nhấp vào các số theo thứ tự từ 1 đến 50. Nhấn R để chơi lại.</p>
     </div>
     
     <div id="checkpoint-message"></div>
+    <div id="result-box" class="hidden"></div>
   </div>
 
 <script>
@@ -93,6 +146,11 @@ let bgVideo;
 let checkpoints = [];
 let showCheckpointMessage = false;
 let checkpointTimer = 0;
+
+// Biến tính điểm và thời gian
+let score = 0;
+let startTime = null;
+let timerInterval = null;
 
 function preload() {
   // Sử dụng ảnh mẫu từ internet thay vì file local
@@ -130,6 +188,9 @@ function setup() {
     isAnimating: false,
     isJumpingImg: false
   };
+  
+  // Bắt đầu tính thời gian
+  startTimer();
 }
 
 function generatePlatforms() {
@@ -344,6 +405,7 @@ function applyGravity() {
     document.getElementById('checkpoint-message').textContent = "Game Over! Bạn đã rơi xuống. Nhấn R để chơi lại.";
     document.getElementById('checkpoint-message').style.display = 'block';
     showCheckpointMessage = true;
+    endGame(false);
   }
 }
 
@@ -361,6 +423,10 @@ function mousePressed() {
           jumpTo(p);
           hideWrongAnswers(p.row);
           currentTarget++;
+          
+          // Cộng điểm cho mỗi bước đúng
+          score += 10;
+          document.getElementById('score').textContent = score;
           
           // Kiểm tra nếu đạt mốc
           if (checkpoints.includes(p.label)) {
@@ -389,6 +455,7 @@ function mousePressed() {
       noLoop();
       document.getElementById('checkpoint-message').textContent = "🏆 Chúc mừng! Bạn đã hoàn thành game và tìm được kho báu!";
       document.getElementById('checkpoint-message').style.display = 'block';
+      endGame(true);
     }, 1000);
   }
 }
@@ -429,6 +496,8 @@ function keyPressed() {
     currentTarget = 1;
     isFalling = false;
     gameWon = false;
+    score = 0;
+    document.getElementById('score').textContent = score;
     generatePlatforms();
     player.x = startPlatform.x + 75;
     player.y = startPlatform.y - 20;
@@ -438,7 +507,78 @@ function keyPressed() {
     player.isJumpingImg = false;
     player.jumpProgress = 0;
     document.getElementById('checkpoint-message').style.display = 'none';
+    document.getElementById('result-box').classList.add('hidden');
+    startTimer();
     loop();
+  }
+}
+
+// Hàm tính thời gian
+function startTimer() {
+  if (timerInterval) {
+    clearInterval(timerInterval);
+  }
+  startTime = performance.now();
+  timerInterval = setInterval(updateTimer, 100);
+}
+
+function updateTimer() {
+  if (startTime) {
+    const elapsed = (performance.now() - startTime) / 1000;
+    document.getElementById('timer').textContent = elapsed.toFixed(2);
+  }
+}
+
+function stopTimer() {
+  if (timerInterval) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
+}
+
+// Hàm kết thúc game
+function endGame(isWin) {
+  stopTimer();
+  const elapsed = startTime ? (performance.now() - startTime)/1000 : 0;
+  
+  const resultBox = document.getElementById('result-box');
+  resultBox.classList.remove('hidden');
+  
+  if (isWin) {
+    resultBox.innerHTML = `🎉 Hoàn thành! Điểm: <span style="color:gold">${score}</span> — Thời gian: <strong>${elapsed.toFixed(2)}s</strong>`;
+  } else {
+    resultBox.innerHTML = `💥 Game Over! Điểm: <span style="color:gold">${score}</span> — Thời gian: <strong>${elapsed.toFixed(2)}s</strong>`;
+  }
+
+  // 🟢 GỬI ĐIỂM LÊN SERVER
+  const username = localStorage.getItem('username') || prompt("Nhập tên người chơi của bạn:");
+  if (username) {
+    localStorage.setItem('username', username); // lưu để lần sau khỏi hỏi lại
+    fetch("http://210.245.52.119/api_gamedemso/api/scores/save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        username: username,
+        gameId: 3,          // id game trong bảng games, tùy bạn đặt
+        score: score,
+        timeTaken: elapsed
+      })
+    })
+    .then(res => res.json())
+    .then(data => {
+      console.log("Kết quả lưu điểm:", data);
+      if (data.success) {
+        resultBox.innerHTML += "<br><span style='color:#10b981'>✅ Điểm đã được lưu!</span>";
+      } else {
+        resultBox.innerHTML += "<br><span style='color:#ef4444'>❌ Lưu điểm thất bại: " + data.message + "</span>";
+      }
+    })
+    .catch(err => {
+      console.error("Lỗi lưu điểm:", err);
+      resultBox.innerHTML += "<br><span style='color:#ef4444'>⚠️ Không kết nối được server.</span>";
+    });
+  } else {
+    resultBox.innerHTML += "<br><span style='color:#facc15'>⚠️ Không lưu điểm (chưa nhập tên).</span>";
   }
 }
 </script>

@@ -11,6 +11,8 @@ function Login() {
     try {
       const res = await loginUser(username, password);
       localStorage.setItem('username', res.data.user.username);
+      localStorage.setItem('token', res.data.token);
+      localStorage.setItem('userId', res.data.user.id);       // ✅ lưu id
       navigate('/');
     } catch {
       alert('Sai tài khoản hoặc mật khẩu');
