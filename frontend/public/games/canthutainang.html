@@ -35,16 +35,16 @@
       margin-bottom: 20px;
     }
     canvas {
-      background: linear-gradient(to bottom, #0a3d62, #1e5799);
+      background: transparent;
       border: 5px solid #2c3e50;
       border-radius: 10px;
       box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
     }
     #guide {
       position: absolute;
-      top: 330px;
+      top: 35px;
       width: 100%;
-      text-align: center;
+      text-align: right;
       font-size: 16px;
       text-shadow: 1px 1px 2px #000;
       padding: 0 10px;
@@ -61,9 +61,9 @@
     }
     #score {
       position: absolute;
-      top: 300px;
+      top: 0px;
       width: 100%;
-      text-align: center;
+      text-align: right;
       font-size: 18px;
       color: #fff;
       text-shadow: 1px 1px 2px #000;
@@ -80,13 +80,23 @@
     }
     #level {
       position: absolute;
-      top: 70px;
+      top: 0px;
+
       width: 100%;
-      text-align: center;
+      text-align: left;
       font-size: 18px;
       color: #FF6B6B;
       text-shadow: 1px 1px 2px #000;
       font-weight: bold;
+    }
+    #timer {
+      position: absolute;
+      top: 30px;
+      width: 100%;
+      text-align: left;
+      font-size: 18px;
+      color: #fff;
+      text-shadow: 1px 1px 2px #000;
     }
     #controller {
       display: flex;
@@ -152,6 +162,42 @@
       justify-content: center;
       gap: 10px;
     }
+    #result-box {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0, 0, 0, 0.85);
+      padding: 30px;
+      border-radius: 15px;
+      text-align: center;
+      z-index: 100;
+      box-shadow: 0 0 30px rgba(0, 0, 0, 0.7);
+      border: 2px solid gold;
+      max-width: 90%;
+    }
+    #result-box.hidden {
+      display: none;
+    }
+    #result-box h2 {
+      color: gold;
+      margin-bottom: 15px;
+      font-size: 24px;
+    }
+    #result-box p {
+      margin: 10px 0;
+      font-size: 18px;
+    }
+    #result-box button {
+      margin-top: 15px;
+      padding: 10px 20px;
+      background: linear-gradient(to bottom, #3498db, #2980b9);
+      color: white;
+      border: none;
+      border-radius: 50px;
+      font-size: 16px;
+      cursor: pointer;
+    }
     @media (max-width: 500px) {
       canvas {
         width: 100%;
@@ -171,6 +217,15 @@
       #restart-btn, #next-level-btn {
         margin-left: 0;
       }
+      #result-box {
+        padding: 20px;
+      }
+      #result-box h2 {
+        font-size: 20px;
+      }
+      #result-box p {
+        font-size: 16px;
+      }
     }
   </style>
 </head>
@@ -181,7 +236,8 @@
     <div id="message"></div>
     <div id="score">Điểm: 0</div>
     <div id="level">Cấp độ: 1 (Số 1-10)</div>
-    <div id="target">Cần câu số: 1</div>
+    <div id="timer">Thời gian: 0s</div>
+   
     <canvas id="gameCanvas" width="800" height="400"></canvas>
   </div>
   
@@ -201,6 +257,12 @@
     Nếu câu sai số, bạn sẽ thua!</p>
   </div>
 
+  <div id="result-box" class="hidden">
+    <h2>Kết quả</h2>
+    <p id="result-text"></p>
+    <button id="close-result">Đóng</button>
+  </div>
+
   <script>
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
@@ -208,11 +270,15 @@
     const scoreElement = document.getElementById("score");
     const targetElement = document.getElementById("target");
     const levelElement = document.getElementById("level");
+    const timerElement = document.getElementById("timer");
     const leftBtn = document.getElementById("left-btn");
     const rightBtn = document.getElementById("right-btn");
     const dropBtn = document.getElementById("drop-btn");
     const restartBtn = document.getElementById("restart-btn");
     const nextLevelBtn = document.getElementById("next-level-btn");
+    const resultBox = document.getElementById("result-box");
+    const resultText = document.getElementById("result-text");
+    const closeResultBtn = document.getElementById("close-result");
 
     // Các biến trò chơi
     let clawX = 250;
@@ -228,71 +294,95 @@
     let currentLevel = 1;
     let totalLevels = 4;
     let maxTarget = 10; // Mỗi cấp độ có 10 số
+    let moveLeftActive = false;
+    let moveRightActive = false;
+
+
+    // Biến thời gian
+    let startTime = null;
+    let timerInterval = null;
+    let elapsedTime = 0;
 
     // Xác định ranh giới nước
     const waterLevel = 100;
     let waveOffset = 0;
 
-    // Tạo bong bóng với chuyển động chậm hơn và tự nhiên
-    let bubbles = [];
-    function initBubbles() {
-      bubbles = [];
-      for (let i = 0; i < 15; i++) {
-        bubbles.push({
-          x: Math.random() * canvas.width,
-          y: waterLevel + Math.random() * (canvas.height - waterLevel),
-          size: Math.random() * 8 + 3,
-          speed: Math.random() * 0.8 + 0.3,
-          opacity: Math.random() * 0.6 + 0.2,
-          wobble: Math.random() * 0.02 + 0.01
-        });
+    // Hình ảnh
+    const backgroundImg = new Image();
+    backgroundImg.src = 'backgroundcauca.png';
+    
+    const boatImg = new Image();
+    boatImg.src = 'boat.png';
+    
+    const fishermanImg = new Image();
+    fishermanImg.src = 'nguoicauca.png';
+    
+    const hookImg = new Image();
+    hookImg.src = 'moccau.png';
+    
+    const fishImg = new Image();
+    fishImg.src = 'fish.png';
+
+    // Hàm bắt đầu đếm thời gian
+    function startTimer() {
+      startTime = performance.now();
+      timerInterval = setInterval(() => {
+        elapsedTime = (performance.now() - startTime) / 1000;
+        timerElement.innerText = "Thời gian: " + elapsedTime.toFixed(1) + "s";
+      }, 100);
+    }
+
+    // Hàm dừng đếm thời gian
+    function stopTimer() {
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
       }
     }
 
-    // Cập nhật bong bóng
-    function updateBubbles() {
-      bubbles.forEach(bubble => {
-        bubble.y -= bubble.speed;
-        bubble.x += Math.sin(bubble.y * bubble.wobble) * 0.5;
-        
-        // Reset bong bóng khi ra khỏi màn hình
-        if (bubble.y < waterLevel) {
-          bubble.y = canvas.height - Math.random() * 50;
-          bubble.x = Math.random() * canvas.width;
-          bubble.size = Math.random() * 8 + 3;
-          bubble.speed = Math.random() * 0.8 + 0.3;
-          bubble.opacity = Math.random() * 0.6 + 0.2;
-        }
-      });
-    }
+    // Hàm kết thúc game
+    function endGame(isWin) {
+      stopTimer();
+      gameOver = true;
+      
+      resultBox.classList.remove('hidden');
+      
+      if (isWin) {
+        resultText.innerHTML = `🎉 Hoàn thành! Điểm: <span style="color:gold">${score}</span> — Thời gian: <strong>${elapsedTime.toFixed(2)}s</strong>`;
+      } else {
+        resultText.innerHTML = `💥 Game Over! Điểm: <span style="color:gold">${score}</span> — Thời gian: <strong>${elapsedTime.toFixed(2)}s</strong>`;
+      }
 
-    // Vẽ bong bóng
-    function drawBubbles() {
-      bubbles.forEach(bubble => {
-        ctx.save();
-        ctx.globalAlpha = bubble.opacity;
-        
-        // Tạo gradient cho bong bóng
-        const gradient = ctx.createRadialGradient(
-          bubble.x - bubble.size * 0.3, bubble.y - bubble.size * 0.3, 0,
-          bubble.x, bubble.y, bubble.size
-        );
-        gradient.addColorStop(0, "rgba(255, 255, 255, 0.8)");
-        gradient.addColorStop(0.7, "rgba(173, 216, 230, 0.4)");
-        gradient.addColorStop(1, "rgba(173, 216, 230, 0.1)");
-        
-        ctx.fillStyle = gradient;
-        ctx.beginPath();
-        ctx.arc(bubble.x, bubble.y, bubble.size, 0, Math.PI * 2);
-        ctx.fill();
-        
-        // Thêm viền mờ
-        ctx.strokeStyle = "rgba(255, 255, 255, 0.3)";
-        ctx.lineWidth = 1;
-        ctx.stroke();
-        
-        ctx.restore();
-      });
+      // 🟢 GỬI ĐIỂM LÊN SERVER
+      const username = localStorage.getItem('username') || prompt("Nhập tên người chơi của bạn:");
+      if (username) {
+        localStorage.setItem('username', username); // lưu để lần sau khỏi hỏi lại
+        fetch("http://210.245.52.119/api_gamedemso/api/scores/save", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            username: username,
+            gameId: 10,          // id game trong bảng games, tùy bạn đặt
+            score: score,
+            timeTaken: elapsedTime
+          })
+        })
+        .then(res => res.json())
+        .then(data => {
+          console.log("Kết quả lưu điểm:", data);
+          if (data.success) {
+            resultText.innerHTML += "<br><span style='color:#10b981'>✅ Điểm đã được lưu!</span>";
+          } else {
+            resultText.innerHTML += "<br><span style='color:#ef4444'>❌ Lưu điểm thất bại: " + data.message + "</span>";
+          }
+        })
+        .catch(err => {
+          console.error("Lỗi lưu điểm:", err);
+          resultText.innerHTML += "<br><span style='color:#ef4444'>⚠️ Không kết nối được server.</span>";
+        });
+      } else {
+        resultText.innerHTML += "<br><span style='color:#facc15'>⚠️ Không lưu điểm (chưa nhập tên).</span>";
+      }
     }
 
     // Màu sắc cho cá từ 1 đến 40
@@ -330,98 +420,20 @@
 
     let caughtFish = null;
 
-    // Vẽ ranh giới nước với hiệu ứng sóng
-    function drawWaterSurface() {
-      ctx.save();
-      
-      // Tạo gradient cho mặt nước
-      const waterSurfaceGradient = ctx.createLinearGradient(0, waterLevel - 10, 0, waterLevel + 10);
-      waterSurfaceGradient.addColorStop(0, "rgba(173, 216, 230, 0.6)");
-      waterSurfaceGradient.addColorStop(0.5, "rgba(135, 206, 250, 0.8)");
-      waterSurfaceGradient.addColorStop(1, "rgba(135, 206, 250, 0.4)");
-      
-      ctx.fillStyle = waterSurfaceGradient;
-      ctx.beginPath();
-      
-      // Vẽ đường sóng
-      ctx.moveTo(0, waterLevel);
-      for (let x = 0; x < canvas.width; x += 10) {
-        const y = waterLevel + Math.sin(x * 0.05 + waveOffset) * 3;
-        ctx.lineTo(x, y);
-      }
-      ctx.lineTo(canvas.width, waterLevel);
-      ctx.lineTo(canvas.width, waterLevel + 10);
-      ctx.lineTo(0, waterLevel + 10);
-      ctx.closePath();
-      ctx.fill();
-      
-      // Vẽ hiệu ứng ánh sáng trên mặt nước
-      ctx.fillStyle = "rgba(255, 255, 255, 0.2)";
-      ctx.beginPath();
-      ctx.moveTo(0, waterLevel);
-      for (let x = 0; x < canvas.width; x += 15) {
-        const y = waterLevel + Math.sin(x * 0.03 + waveOffset * 1.5) * 2;
-        ctx.lineTo(x, y);
-      }
-      ctx.lineTo(canvas.width, waterLevel);
-      ctx.lineTo(canvas.width, waterLevel + 5);
-      ctx.lineTo(0, waterLevel + 5);
-      ctx.closePath();
-      ctx.fill();
-      
-      ctx.restore();
-    }
-
     // Vẽ thuyền câu cá với nhân vật
     function drawBoat() {
       const boatX = clawX - 40;
       const boatY = waterLevel - 35;
       
-      // Thân thuyền với gradient
-      const boatGradient = ctx.createLinearGradient(boatX, boatY, boatX, boatY + 25);
-      boatGradient.addColorStop(0, "#8B4513");
-      boatGradient.addColorStop(0.3, "#D2691E");
-      boatGradient.addColorStop(1, "#654321");
-      
-      ctx.fillStyle = boatGradient;
-      ctx.beginPath();
-      ctx.moveTo(boatX, boatY + 25);
-      ctx.quadraticCurveTo(boatX - 5, boatY + 30, boatX + 10, boatY + 30);
-      ctx.lineTo(boatX + 70, boatY + 30);
-      ctx.quadraticCurveTo(boatX + 85, boatY + 30, boatX + 80, boatY + 25);
-      ctx.lineTo(boatX + 75, boatY + 10);
-      ctx.lineTo(boatX + 5, boatY + 10);
-      ctx.closePath();
-      ctx.fill();
-      
-      // Viền thuyền
-      ctx.strokeStyle = "#5D4E37";
-      ctx.lineWidth = 2;
-      ctx.stroke();
-      
-      // Cabin thuyền
-      ctx.fillStyle = "#FF6B47";
-      ctx.fillRect(boatX + 15, boatY - 5, 25, 15);
-      
-      // Cửa sổ cabin
-      ctx.fillStyle = "#87CEEB";
-      ctx.fillRect(boatX + 18, boatY - 2, 8, 6);
-      ctx.fillRect(boatX + 30, boatY - 2, 8, 6);
-      
-      // Ống khói với khói
-      ctx.fillStyle = "#696969";
-      ctx.fillRect(boatX + 45, boatY - 12, 4, 10);
-      
-      // Khói bay
-      ctx.fillStyle = "rgba(200, 200, 200, 0.6)";
-      for (let i = 0; i < 3; i++) {
-        ctx.beginPath();
-        ctx.arc(boatX + 47 + i * 3, boatY - 15 - i * 5, 2 + i, 0, Math.PI * 2);
-        ctx.fill();
+      // Vẽ thuyền
+      if (boatImg.complete) {
+        ctx.drawImage(boatImg, boatX - 40, boatY - 20, 120, 60);
       }
       
-      // Vẽ nhân vật ngồi câu cá
-      drawFisherman(boatX + 60, boatY + 5);
+      // Vẽ nhân vật câu cá
+      if (fishermanImg.complete) {
+        ctx.drawImage(fishermanImg, boatX + 40, boatY - 15, 40, 40);
+      }
       
       // Cần câu
       ctx.strokeStyle = "#8B4513";
@@ -429,148 +441,55 @@
       ctx.lineCap = "round";
       ctx.beginPath();
       ctx.moveTo(boatX + 60, boatY + 5);
-      ctx.lineTo(clawX, waterLevel + 20);
+      ctx.lineTo(clawX+35, waterLevel - 50);
       ctx.stroke();
-      
-      // Máy câu (reel)
-      ctx.fillStyle = "#C0C0C0";
-      ctx.beginPath();
-      ctx.arc(boatX + 60, boatY + 5, 3, 0, Math.PI * 2);
-      ctx.fill();
     }
 
-    // Vẽ người câu cá
-    function drawFisherman(x, y) {
-      // Đầu
-      ctx.fillStyle = "#FFDAB9";
-      ctx.beginPath();
-      ctx.arc(x, y - 10, 6, 0, Math.PI * 2);
-      ctx.fill();
-      
-      // Mắt
-      ctx.fillStyle = "#000";
-      ctx.beginPath();
-      ctx.arc(x - 2, y - 11, 1, 0, Math.PI * 2);
-      ctx.arc(x + 2, y - 11, 1, 0, Math.PI * 2);
-      ctx.fill();
-      
-      // Thân
-      ctx.fillStyle = "#1E90FF";
-      ctx.fillRect(x - 5, y - 4, 10, 10);
-      
-      // Mũ
-      ctx.fillStyle = "#FF0000";
-      ctx.beginPath();
-      ctx.arc(x, y - 16, 5, 0, Math.PI, true);
-      ctx.fill();
-      
-      // Tay cầm cần
-      ctx.fillStyle = "#FFDAB9";
-      ctx.fillRect(x - 2, y - 4, 4, 4);
-    }
-
-    // Vẽ cần câu đã bỏ thanh xám
+    // Vẽ móc câu
     function drawClaw() {
-      // Vẽ dây câu với gradient
-      const ropeGradient = ctx.createLinearGradient(clawX - 2, waterLevel + 20, clawX + 2, ropeLength);
-      ropeGradient.addColorStop(0, "#bebebe");
-      ropeGradient.addColorStop(1, "#686868");
-      ctx.fillStyle = ropeGradient;
-      ctx.fillRect(clawX - 2, waterLevel + 20, 4, ropeLength - (waterLevel + 20));
-      
-      // Vẽ móc câu đẹp hơn (bỏ thanh ngang màu xám)
-      const hookX = clawX;
-      const hookY = ropeLength; // Móc nối trực tiếp với dây
-      
-      // Phần thẳng của móc
-      ctx.strokeStyle = "#dc143c";
-      ctx.lineWidth = 3;
-      ctx.lineCap = "round";
+      // Vẽ dây câu
+      ctx.strokeStyle = "#bebebe";
+      ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.moveTo(hookX, hookY);
-      ctx.lineTo(hookX, hookY + 12);
+      ctx.moveTo(clawX+35, waterLevel  -50);
+      ctx.lineTo(clawX+35, ropeLength);
       ctx.stroke();
       
-      // Phần cong của móc
-      ctx.beginPath();
-      ctx.arc(hookX - 4, hookY + 12, 4, 0, Math.PI);
-      ctx.stroke();
-      
-      // Đầu nhọn của móc
-      ctx.beginPath();
-      ctx.moveTo(hookX - 8, hookY + 12);
-      ctx.lineTo(hookX - 10, hookY + 10);
-      ctx.stroke();
-      
-      // Thêm ánh sáng cho móc
-      ctx.strokeStyle = "#ff6347";
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(hookX - 1, hookY);
-      ctx.lineTo(hookX - 1, hookY + 8);
-      ctx.stroke();
+      // Vẽ móc câu
+      if (hookImg.complete) {
+        ctx.drawImage(hookImg, clawX +30, ropeLength - 5, 20, 20);
+      }
     }
 
     // Vẽ cá
     function drawFishes() {
       fishes.forEach(fish => {
         if (!fish.caught) {
-          // Vẽ thân cá với gradient
-          const fishGradient = ctx.createRadialGradient(
-            fish.x - fish.size * 0.2, fish.y - fish.size * 0.1, 0,
-            fish.x, fish.y, fish.size / 2
-          );
-          fishGradient.addColorStop(0, fish.color);
-          fishGradient.addColorStop(1, fish.color + "80");
-          
-          ctx.fillStyle = fishGradient;
-          ctx.beginPath();
-          ctx.ellipse(fish.x, fish.y, fish.size / 2, fish.size / 3, 0, 0, Math.PI * 2);
-          ctx.fill();
-          
-          // Viền cá
-          ctx.strokeStyle = fish.color;
-          ctx.lineWidth = 2;
-          ctx.stroke();
-          
-          // Vẽ đuôi cá
-          ctx.fillStyle = fish.color;
-          ctx.beginPath();
-          ctx.moveTo(fish.x - (fish.size / 3) * fish.direction, fish.y);
-          ctx.lineTo(fish.x - (fish.size / 1.5) * fish.direction, fish.y - fish.size / 3);
-          ctx.lineTo(fish.x - (fish.size / 1.5) * fish.direction, fish.y + fish.size / 3);
-          ctx.closePath();
-          ctx.fill();
-          
-          // Vẽ vây cá
-          ctx.beginPath();
-          ctx.moveTo(fish.x - (fish.size / 8) * fish.direction, fish.y - fish.size / 4);
-          ctx.lineTo(fish.x - (fish.size / 4) * fish.direction, fish.y - fish.size / 2);
-          ctx.lineTo(fish.x + (fish.size / 8) * fish.direction, fish.y - fish.size / 6);
-          ctx.closePath();
-          ctx.fill();
-          
-          // Vẽ mắt cá
-          ctx.fillStyle = "white";
-          ctx.beginPath();
-          ctx.arc(fish.x + (fish.size / 4) * fish.direction, fish.y - fish.size / 10, fish.size / 8, 0, Math.PI * 2);
-          ctx.fill();
-          
-          ctx.fillStyle = "black";
-          ctx.beginPath();
-          ctx.arc(fish.x + (fish.size / 4) * fish.direction, fish.y - fish.size / 10, fish.size / 16, 0, Math.PI * 2);
-          ctx.fill();
-          
-          // Vẽ số trên cá với viền
-          ctx.strokeStyle = "black";
-          ctx.lineWidth = 3;
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.font = "bold " + (fish.size / 2.5) + "px Arial";
-          ctx.strokeText(fish.num, fish.x, fish.y);
-          
-          ctx.fillStyle = "white";
-          ctx.fillText(fish.num, fish.x, fish.y);
+          // Vẽ hình ảnh cá
+          if (fishImg.complete) {
+            ctx.save();
+            
+            // Lật hình cá theo hướng di chuyển
+            if (fish.direction < 0) {
+              ctx.translate(fish.x, fish.y);
+              ctx.scale(-1, 1);
+              ctx.drawImage(fishImg, -fish.size, -fish.size/2, fish.size * 2, fish.size);
+              ctx.restore();
+            } else {
+              ctx.drawImage(fishImg, fish.x - fish.size, fish.y - fish.size/2, fish.size * 2, fish.size);
+            }
+            
+            // Vẽ số trên cá với viền
+            ctx.strokeStyle = "black";
+            ctx.lineWidth = 3;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.font = "bold " + (fish.size / 2.5) + "px Arial";
+            ctx.strokeText(fish.num, fish.x, fish.y);
+            
+            ctx.fillStyle = "white";
+            ctx.fillText(fish.num, fish.x, fish.y);
+          }
         }
       });
     }
@@ -631,8 +550,8 @@
     function updateClaw() {
       if (isDropping && !gameOver) {
         ropeLength += 5;
-        let clawTipX = clawX;
-        let clawTipY = ropeLength + 15; // Điều chỉnh vị trí móc
+        let clawTipX = clawX+30;
+        let clawTipY = ropeLength + 5; // Điều chỉnh vị trí móc
 
         if (ropeLength > canvas.height - 50) {
           isDropping = false;
@@ -662,19 +581,14 @@
                     gameOver = true;
                     messageBox.innerText = "Chúc mừng! Bạn đã hoàn thành cấp độ " + currentLevel + "!";
                     nextLevelBtn.style.display = "block";
+                    stopTimer();
                   } else {
                     // Hoàn thành toàn bộ trò chơi
-                    gameOver = true;
-                    messageBox.innerText = "Chúc mừng! Bạn đã chiến thắng toàn bộ trò chơi! 🎉";
-                    restartBtn.style.display = "block";
+                    endGame(true);
                   }
-                } else {
-                  targetElement.innerText = "Cần câu số: " + currentTarget;
-                }
+                } 
               } else {
-                gameOver = true;
-                messageBox.innerText = "Bạn đã câu sai số! Trò chơi kết thúc!";
-                restartBtn.style.display = "block";
+                endGame(false);
               }
             }
           }
@@ -684,7 +598,7 @@
         ropeLength -= 5;
         if (caughtFish) {
           caughtFish.x = clawX;
-          caughtFish.y = ropeLength + 15 + caughtFish.size / 2; // Điều chỉnh vị trí cá bị câu
+          caughtFish.y = ropeLength + 10 + caughtFish.size / 2; // Điều chỉnh vị trí cá bị câu
         }
         if (ropeLength <= waterLevel + 20) {
           isReturning = false;
@@ -699,70 +613,66 @@
       }
     }
 
-    // Vẽ nền đáy biển với chi tiết hơn
-    function drawSeaBottom() {
-      // Vẽ cát đáy biển
-      const sandGradient = ctx.createLinearGradient(0, canvas.height - 40, 0, canvas.height);
-      sandGradient.addColorStop(0, "#daa520");
-      sandGradient.addColorStop(1, "#8b7355");
-      ctx.fillStyle = sandGradient;
-      ctx.beginPath();
-      ctx.ellipse(canvas.width/2, canvas.height + 20, canvas.width/2, 40, 0, 0, Math.PI * 2);
-      ctx.fill();
-      
-      // Vẽ rong biển
-      ctx.fillStyle = "#228b22";
-      for (let i = 0; i < 5; i++) {
-        const x = (i + 1) * (canvas.width / 6);
-        const height = Math.random() * 30 + 20;
-        ctx.beginPath();
-        ctx.ellipse(x, canvas.height - 10, 3, height, Math.sin(Date.now() * 0.001 + i) * 0.2, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      
-      // Vẽ san hô với gradient
-      const coralGradient1 = ctx.createRadialGradient(80, canvas.height - 45, 0, 80, canvas.height - 45, 25);
-      coralGradient1.addColorStop(0, "#ff6b9d");
-      coralGradient1.addColorStop(1, "#c44569");
-      ctx.fillStyle = coralGradient1;
-      ctx.beginPath();
-      ctx.moveTo(50, canvas.height - 30);
-      ctx.lineTo(80, canvas.height - 60);
-      ctx.lineTo(110, canvas.height - 30);
-      ctx.closePath();
-      ctx.fill();
-      
-      const coralGradient2 = ctx.createRadialGradient(canvas.width - 80, canvas.height - 45, 0, canvas.width - 80, canvas.height - 45, 25);
-      coralGradient2.addColorStop(0, "#74b9ff");
-      coralGradient2.addColorStop(1, "#0984e3");
-      ctx.fillStyle = coralGradient2;
-      ctx.beginPath();
-      ctx.moveTo(canvas.width - 50, canvas.height - 30);
-      ctx.lineTo(canvas.width - 80, canvas.height - 60);
-      ctx.lineTo(canvas.width - 110, canvas.height - 30);
-      ctx.closePath();
-      ctx.fill();
-    }
+
+
+
+  function handleContinuousMovement() {
+  if (gameOver) return;
+  if (isDropping || isReturning) return; // không cho di chuyển khi thả/kéo lên
+  if (moveLeftActive) {
+    clawX = Math.max(clawX - clawMove, clawWidth / 2);
+  }
+  if (moveRightActive) {
+    clawX = Math.min(clawX + clawMove, canvas.width - clawWidth / 2);
+  }
+}
+
+
+// --- keyboard: nhấn giữ / nhả ---
+document.addEventListener("keydown", (e) => {
+  if (gameOver) return;
+  if (e.key === "ArrowLeft") {
+    moveLeftActive = true;
+    e.preventDefault(); // tránh trang cuộn
+  } else if (e.key === "ArrowRight") {
+    moveRightActive = true;
+    e.preventDefault();
+  } else if ((e.key === " " || e.key === "ArrowDown") && !isDropping && !isReturning) {
+    // space hoặc xuống thả móc
+    isDropping = true;
+    moveLeftActive = moveRightActive = false;
+  }
+});
+
+document.addEventListener("keyup", (e) => {
+  if (e.key === "ArrowLeft") moveLeftActive = false;
+  else if (e.key === "ArrowRight") moveRightActive = false;
+});
+
+
+
 
     // Vòng lặp game
     function gameLoop() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      handleContinuousMovement();
+
+
       
-      // Vẽ nền với gradient đẹp hơn
-      const bgGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-      bgGradient.addColorStop(0, "#1e3c72");
-      bgGradient.addColorStop(0.5, "#2a5298");
-      bgGradient.addColorStop(1, "#1e5799");
-      ctx.fillStyle = bgGradient;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      // Vẽ nền
+      if (backgroundImg.complete) {
+        ctx.drawImage(backgroundImg, 0, 0, canvas.width, canvas.height);
+      } else {
+        // Fallback nếu ảnh chưa tải xong
+        const bgGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        bgGradient.addColorStop(0, "#1e3c72");
+        bgGradient.addColorStop(0.5, "#2a5298");
+        bgGradient.addColorStop(1, "#1e5799");
+        ctx.fillStyle = bgGradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
       
-      // Cập nhật hiệu ứng sóng
-      waveOffset += 0.1;
-      
-      updateBubbles();
-      drawBubbles();
-      drawSeaBottom();
-      drawWaterSurface(); // Vẽ ranh giới nước
       drawBoat();
       drawFishes();
       drawClaw();
@@ -773,46 +683,42 @@
       requestAnimationFrame(gameLoop);
     }
 
-    // Điều khiển bằng bàn phím
-    document.addEventListener("keydown", (e) => {
-      if (gameOver) return;
-      
-      if (e.key === "ArrowLeft" && !isDropping && !isReturning) {
-        clawX = Math.max(clawX - clawMove, clawWidth / 2);
-      } else if (e.key === "ArrowRight" && !isDropping && !isReturning) {
-        clawX = Math.min(clawX + clawMove, canvas.width - clawWidth / 2);
-      } else if ((e.key === " " || e.key === "ArrowDown") && !isDropping && !isReturning) {
-        isDropping = true;
-      }
-    });
+    // --- pointer (mouse/touch) hold-to-move handlers ---
+leftBtn.addEventListener("pointerdown", (e) => {
+  e.preventDefault();
+  if (gameOver) return;
+  if (!isDropping && !isReturning) moveLeftActive = true;
+});
+leftBtn.addEventListener("pointerup", (e) => {
+  e.preventDefault();
+  moveLeftActive = false;
+});
+leftBtn.addEventListener("pointercancel", (e) => { moveLeftActive = false; });
+leftBtn.addEventListener("pointerleave", (e) => { moveLeftActive = false; });
 
-    // Điều khiển cảm ứng cho mobile
-    leftBtn.addEventListener("touchstart", (e) => {
-      e.preventDefault();
-      if (!isDropping && !isReturning && !gameOver) {
-        clawX = Math.max(clawX - clawMove, clawWidth / 2);
-      }
-    });
+rightBtn.addEventListener("pointerdown", (e) => {
+  e.preventDefault();
+  if (gameOver) return;
+  if (!isDropping && !isReturning) moveRightActive = true;
+});
+rightBtn.addEventListener("pointerup", (e) => {
+  e.preventDefault();
+  moveRightActive = false;
+});
+rightBtn.addEventListener("pointercancel", (e) => { moveRightActive = false; });
+rightBtn.addEventListener("pointerleave", (e) => { moveRightActive = false; });
 
-    rightBtn.addEventListener("touchstart", (e) => {
-      e.preventDefault();
-      if (!isDropping && !isReturning && !gameOver) {
-        clawX = Math.min(clawX + clawMove, canvas.width - clawWidth / 2);
-      }
-    });
-
-    dropBtn.addEventListener("touchstart", (e) => {
-      e.preventDefault();
-      if (!isDropping && !isReturning && !gameOver) {
-        isDropping = true;
-      }
-    });
 
     // Nút chơi lại
     restartBtn.addEventListener("click", restartGame);
     
     // Nút chuyển cấp độ
     nextLevelBtn.addEventListener("click", nextLevel);
+    
+    // Nút đóng kết quả
+    closeResultBtn.addEventListener("click", () => {
+      resultBox.classList.add("hidden");
+    });
     
     function restartGame() {
       clawX = 250;
@@ -824,19 +730,22 @@
       currentTarget = 1;
       gameOver = false;
       caughtFish = null;
+      elapsedTime = 0;
       
       scoreElement.innerText = "Điểm: 0";
       levelElement.innerText = "Cấp độ: 1 (Số 1-10)";
-      targetElement.innerText = "Cần câu số: 1";
+      
+      timerElement.innerText = "Thời gian: 0s";
       messageBox.innerText = "";
       restartBtn.style.display = "none";
       nextLevelBtn.style.display = "none";
+      resultBox.classList.add("hidden");
       
       // Tạo lại cá
       initFishes();
       
-      // Tạo lại bong bóng
-      initBubbles();
+      // Bắt đầu đếm thời gian
+      startTimer();
     }
     
     function nextLevel() {
@@ -855,7 +764,7 @@
       else if (currentLevel === 4) levelRange = "Số 31-40";
       
       levelElement.innerText = "Cấp độ: " + currentLevel + " (" + levelRange + ")";
-      targetElement.innerText = "Cần câu số: " + currentTarget;
+      
       messageBox.innerText = "";
       nextLevelBtn.style.display = "none";
       
@@ -864,13 +773,16 @@
       
       // Tăng tốc độ di chuyển của cần câu ở các cấp độ cao hơn
       clawMove = 5 + (currentLevel - 1);
+      
+      // Tiếp tục đếm thời gian
+      startTimer();
     }
 
     // Khởi động game
-    initBubbles();
     initFishes();
     levelElement.innerText = "Cấp độ: 1 (Số 1-10)";
-    targetElement.innerText = "Cần câu số: 1";
+    
+    startTimer();
     gameLoop();
   </script>
 </body>

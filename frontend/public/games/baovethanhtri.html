@@ -69,13 +69,47 @@
       margin-top: 5px;
       font-size: 12px;
     }
+    #result-box {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0,0,0,0.9);
+      color: white;
+      padding: 30px;
+      border-radius: 15px;
+      text-align: center;
+      z-index: 1000;
+      box-shadow: 0 0 20px rgba(255,255,255,0.2);
+      min-width: 300px;
+    }
+    .hidden {
+      display: none;
+    }
+    #restartBtn {
+      background: linear-gradient(45deg, #4CAF50, #2E7D32);
+      color: white;
+      border: none;
+      padding: 12px 25px;
+      margin-top: 15px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: bold;
+      transition: all 0.3s;
+    }
+    #restartBtn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px rgba(0,0,0,0.4);
+    }
   </style>
 </head>
 <body>
   <h2>🏰 Game Bảo Vệ Thành - Số Tiếp Theo 🏰</h2>
   <div id="gameInfo">
     <span id="hpDisplay">❤️ HP Thành: 100</span> | 
-    <span id="scoreDisplay">⭐ Điểm: 0</span>
+    <span id="scoreDisplay">⭐ Điểm: 0</span> |
+    <span id="timeDisplay">⏱️ Thời gian: 0s</span>
   </div>
   
   <div id="skillButtons">
@@ -89,6 +123,11 @@
     <p id="question">Câu hỏi sẽ hiện ở đây</p>
     <div id="answers"></div>
     <div id="feedback" style="margin-top: 10px; font-weight: bold;"></div>
+  </div>
+
+  <div id="result-box" class="hidden">
+    <!-- Kết quả game sẽ hiển thị ở đây -->
+    <button id="restartBtn">Chơi Lại</button>
   </div>
 
 <script>
@@ -106,6 +145,15 @@ let questionLocked = false;
 // Biến kỹ năng
 let correctStreak = 0; // Số câu trả lời đúng liên tiếp
 let doubleShotActive = false; // Kỹ năng bắn đôi
+
+// Biến thời gian
+let startTime = null;
+let currentTime = 0;
+let timerInterval = null;
+
+// Biến tăng máu quái vật
+let enemyHpBonus = 0;
+let enemyHpInterval;
 
 // Load images
 const images = {};
@@ -148,19 +196,52 @@ const hero = { x: 120, y: 220 };
 class Enemy {
   constructor() {
     this.x = canvas.width;
-    this.y = 330;
-    this.hp = 80;
-    this.maxHP = 80;
+    
+    // Quái vật xuất hiện ở các độ cao khác nhau
+    const laneHeights = [280, 330, 380];
+    this.lane = Math.floor(Math.random() * laneHeights.length);
+    this.y = laneHeights[this.lane];
+    
+    this.hp = 80 + enemyHpBonus;
+    this.maxHP = 80 + enemyHpBonus;
     this.speed = 0.4;
     this.width = 80;
     this.height = 100;
+    
     // Chọn ngẫu nhiên một trong 8 con quái vật
     this.monsterType = Math.floor(Math.random() * 8) + 1;
     this.image = images[`monster${this.monsterType}.png`];
+    
+    // Biến để tạo đường đi ziczac
+    this.zigzagOffset = 0;
+    this.zigzagSpeed = Math.random() * 0.05 + 0.02;
+    this.zigzagAmplitude = 30;
+    
+    // Biến để tạo đường đi lượn sóng
+    this.waveOffset = Math.random() * Math.PI * 2;
+    this.waveSpeed = Math.random() * 0.03 + 0.01;
+    this.waveAmplitude = 40;
+    
+    // Chọn kiểu di chuyển ngẫu nhiên
+    this.movementType = Math.floor(Math.random() * 3); // 0: thẳng, 1: ziczac, 2: lượn sóng
   }
   
   update() {
+    // Di chuyển theo chiều ngang
     this.x -= this.speed;
+    
+    // Di chuyển theo chiều dọc dựa trên kiểu di chuyển
+    if (this.movementType === 1) {
+      // Di chuyển ziczac
+      this.zigzagOffset += this.zigzagSpeed;
+      this.y = 330 + Math.sin(this.zigzagOffset) * this.zigzagAmplitude;
+    } else if (this.movementType === 2) {
+      // Di chuyển lượn sóng
+      this.waveOffset += this.waveSpeed;
+      this.y = 330 + Math.sin(this.waveOffset) * this.waveAmplitude;
+    }
+    // Nếu movementType = 0, quái vật di chuyển thẳng (không thay đổi y)
+    
     if (this.x < 160) { // Va chạm với thành
       castleHP -= 15;
       this.hp = 0;
@@ -202,72 +283,12 @@ class Bullet {
     this.createdTime = Date.now();
     this.lifetime = 3000; // 3 giây
     this.specialType = specialType; // 'rain' hoặc 'pierce'
-    
-    if (specialType === 'rain') {
-      // Đạn mưa rơi từ trên xuống
-      this.x = Math.random() * canvas.width;
-      this.y = 0;
-      this.speed = 4;
-    } else if (specialType === 'pierce') {
-      // Đạn thần xuyên qua nhiều quái
-      this.pierceCount = 5; // Xuyên qua 5 quái
-      this.hitEnemies = []; // Danh sách quái đã bị trúng
-    }
   }
   
   update() {
     // Kiểm tra thời gian sống
     if (Date.now() - this.createdTime > this.lifetime) {
       this.hit = true; // Đánh dấu để xóa
-      return;
-    }
-    
-    if (this.specialType === 'rain') {
-      // Đạn mưa rơi thẳng xuống
-      this.y += this.speed;
-      
-      // Kiểm tra va chạm với quái
-      for (let enemy of enemies) {
-        if (enemy.hp > 0 && 
-            this.x > enemy.x && this.x < enemy.x + enemy.width &&
-            this.y > enemy.y - enemy.height && this.y < enemy.y) {
-          enemy.hp -= 25;
-          this.hit = true;
-          break;
-        }
-      }
-      
-      // Nếu ra khỏi màn hình
-      if (this.y > canvas.height) {
-        this.hit = true;
-      }
-      return;
-    }
-    
-    if (this.specialType === 'pierce') {
-      // Đạn thần bay thẳng về phía trước
-      this.x += this.speed;
-      
-      // Kiểm tra va chạm với quái
-      for (let enemy of enemies) {
-        if (enemy.hp > 0 && !this.hitEnemies.includes(enemy) &&
-            this.x > enemy.x && this.x < enemy.x + enemy.width &&
-            this.y > enemy.y - enemy.height && this.y < enemy.y) {
-          enemy.hp -= 25;
-          this.hitEnemies.push(enemy);
-          this.pierceCount--;
-          
-          if (this.pierceCount <= 0) {
-            this.hit = true;
-            break;
-          }
-        }
-      }
-      
-      // Nếu ra khỏi màn hình
-      if (this.x > canvas.width) {
-        this.hit = true;
-      }
       return;
     }
     
@@ -295,26 +316,7 @@ class Bullet {
   }
   
   draw() {
-    if (this.specialType === 'rain') {
-      // Vẽ đạn mưa
-      ctx.fillStyle = "cyan";
-      ctx.beginPath();
-      ctx.arc(this.x, this.y, 8, 0, Math.PI * 2);
-      ctx.fill();
-    } else if (this.specialType === 'pierce') {
-      // Vẽ đạn thần
-      ctx.fillStyle = "gold";
-      ctx.beginPath();
-      ctx.arc(this.x, this.y, 10, 0, Math.PI * 2);
-      ctx.fill();
-      
-      // Hiệu ứng ánh sáng
-      ctx.strokeStyle = "yellow";
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(this.x, this.y, 15, 0, Math.PI * 2);
-      ctx.stroke();
-    } else if (images['arrow.png'] && images['arrow.png'].complete) {
+    if (images['arrow.png'] && images['arrow.png'].complete) {
       // Đạn thường
       ctx.drawImage(images['arrow.png'], this.x - this.width/2, this.y - this.height/2, this.width, this.height);
     } else {
@@ -325,6 +327,120 @@ class Bullet {
       ctx.fill();
     }
   }
+}
+
+// Hàm bắt đầu tính thời gian
+function startTimer() {
+  startTime = performance.now();
+  timerInterval = setInterval(updateTimer, 100);
+}
+
+// Hàm cập nhật thời gian
+function updateTimer() {
+  if (startTime) {
+    currentTime = (performance.now() - startTime) / 1000;
+    document.getElementById("timeDisplay").innerText = `⏱️ Thời gian: ${currentTime.toFixed(1)}s`;
+  }
+}
+
+// Hàm dừng tính thời gian
+function stopTimer() {
+  clearInterval(timerInterval);
+  timerInterval = null;
+}
+
+// Hàm tăng máu quái vật mỗi 30 giây
+function startEnemyHpIncrease() {
+  enemyHpInterval = setInterval(() => {
+    enemyHpBonus += 10;
+    console.log(`Quái vật tăng sức mạnh! +10 HP (Tổng: ${enemyHpBonus})`);
+  }, 30000); // 30 giây
+}
+
+// Hàm kết thúc game
+function endGame(isWin) {
+  stopTimer();
+  clearInterval(enemyHpInterval);
+  const elapsed = startTime ? (performance.now() - startTime)/1000 : 0;
+  
+  const resultBox = document.getElementById('result-box');
+  resultBox.classList.remove('hidden');
+  
+  if (isWin) {
+    resultBox.innerHTML = `🎉 Hoàn thành! Điểm: <span style="color:gold">${score}</span> — Thời gian: <strong>${elapsed.toFixed(2)}s</strong>`;
+  } else {
+    resultBox.innerHTML = `💥 Game Over! Điểm: <span style="color:gold">${score}</span> — Thời gian: <strong>${elapsed.toFixed(2)}s</strong>`;
+  }
+
+  // 🟢 GỬI ĐIỂM LÊN SERVER
+  const username = localStorage.getItem('username') || prompt("Nhập tên người chơi của bạn:");
+  if (username) {
+    localStorage.setItem('username', username); // lưu để lần sau khỏi hỏi lại
+    fetch("http://210.245.52.119/api_gamedemso/api/scores/save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        username: username,
+        gameId: 13,          // id game trong bảng games, tùy bạn đặt
+        score: score,
+        timeTaken: elapsed
+      })
+    })
+    .then(res => res.json())
+    .then(data => {
+      console.log("Kết quả lưu điểm:", data);
+      if (data.success) {
+        resultBox.innerHTML += "<br><span style='color:#10b981'>✅ Điểm đã được lưu!</span>";
+      } else {
+        resultBox.innerHTML += "<br><span style='color:#ef4444'>❌ Lưu điểm thất bại: " + data.message + "</span>";
+      }
+    })
+    .catch(err => {
+      console.error("Lỗi lưu điểm:", err);
+      resultBox.innerHTML += "<br><span style='color:#ef4444'>⚠️ Không kết nối được server.</span>";
+    });
+  } else {
+    resultBox.innerHTML += "<br><span style='color:#facc15'>⚠️ Không lưu điểm (chưa nhập tên).</span>";
+  }
+  
+  // Thêm nút chơi lại
+  resultBox.innerHTML += '<br><button id="restartBtn">Chơi Lại</button>';
+  document.getElementById("restartBtn").addEventListener("click", restartGame);
+}
+
+// Hàm khởi động lại game
+function restartGame() {
+  // Reset tất cả biến
+  castleHP = 100;
+  enemies = [];
+  bullets = [];
+  score = 0;
+  gameRunning = true;
+  questionLocked = false;
+  correctStreak = 0;
+  doubleShotActive = false;
+  startTime = null;
+  currentTime = 0;
+  enemyHpBonus = 0;
+  
+  // Ẩn hộp kết quả
+  document.getElementById("result-box").classList.add("hidden");
+  
+  // Hiện lại hộp câu hỏi
+  document.getElementById("questionBox").style.display = "block";
+  
+  // Cập nhật UI
+  updateUI();
+  
+  // Bắt đầu timer
+  startTimer();
+  startEnemyHpIncrease();
+  
+  // Tạo câu hỏi mới
+  newQuestion();
+  
+  // Bắt đầu game loop
+  gameLoop();
 }
 
 // Sinh câu hỏi "số tiếp theo"
@@ -452,13 +568,20 @@ function updateSkillButtons() {
   }
 }
 
-// Kỹ năng Mưa Đạn
+// Kỹ năng Mưa Đạn - Hero bắn ra 6 mũi tên nhắm vào quái gần nhất
 function activateRainSkill() {
   if (correctStreak < 6) return;
   
-  // Tạo 13 viên đạn mưa
-  for (let i = 0; i < 13; i++) {
-    bullets.push(new Bullet(null, 'rain'));
+  // Sắp xếp quái vật theo khoảng cách (gần nhất đầu tiên)
+  let sortedEnemies = [...enemies].sort((a, b) => a.x - b.x);
+  
+  // Bắn 6 mũi tên vào các quái vật gần nhất
+  for (let i = 0; i < 6; i++) {
+    if (sortedEnemies.length > 0) {
+      // Nếu có ít hơn 6 quái, bắn nhiều mũi vào cùng một quái
+      let targetIndex = Math.min(i, sortedEnemies.length - 1);
+      bullets.push(new Bullet(sortedEnemies[targetIndex]));
+    }
   }
   
   // Reset streak
@@ -467,12 +590,21 @@ function activateRainSkill() {
   updateSkillButtons();
 }
 
-// Kỹ năng Đạn Thần
+// Kỹ năng Đạn Thần - Hero bắn ra 12 mũi tên nhắm vào quái gần nhất
 function activatePierceSkill() {
-  if (correctStreak < 6) return;
+  if (correctStreak < 10) return;
   
-  // Tạo đạn thần xuyên qua 5 quái
-  bullets.push(new Bullet(null, 'pierce'));
+  // Sắp xếp quái vật theo khoảng cách (gần nhất đầu tiên)
+  let sortedEnemies = [...enemies].sort((a, b) => a.x - b.x);
+  
+  // Bắn 12 mũi tên vào các quái vật gần nhất
+  for (let i = 0; i < 12; i++) {
+    if (sortedEnemies.length > 0) {
+      // Nếu có ít hơn 12 quái, bắn nhiều mũi vào cùng một quái
+      let targetIndex = Math.min(i, sortedEnemies.length - 1);
+      bullets.push(new Bullet(sortedEnemies[targetIndex]));
+    }
+  }
   
   // Reset streak
   correctStreak = 0;
@@ -556,7 +688,10 @@ function gameLoop() {
     ctx.fillText(`Điểm cuối cùng: ${score}`, canvas.width/2, canvas.height/2 + 20);
     
     ctx.font = "16px Arial";
-    ctx.fillText("Nhấn F5 để chơi lại", canvas.width/2, canvas.height/2 + 50);
+    ctx.fillText("Đang lưu điểm...", canvas.width/2, canvas.height/2 + 50);
+    
+    // Gọi hàm kết thúc game
+    setTimeout(() => endGame(false), 1000);
     return;
   }
 
@@ -564,6 +699,8 @@ function gameLoop() {
 }
 
 // Khởi tạo game
+startTimer();
+startEnemyHpIncrease();
 newQuestion();
 gameLoop();
 

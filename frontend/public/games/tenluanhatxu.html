@@ -72,12 +72,26 @@
       pointer-events: none;
       z-index: 1001;
     }
+    #result-message {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 20px;
+      border-radius: 10px;
+      text-align: center;
+      z-index: 2000;
+      font-size: 18px;
+      max-width: 80%;
+      display: none;
+    }
   </style>
 </head>
 <body>
   <div id="ui">
     <div>Đồng xu: <span id="score">0</span>/30</div>
-    <div>Sao băng: <span id="meteors">0</span></div>
     <div>Năng lượng: <span id="energy">100</span>%</div>
     <div>Thời gian: <span id="game-time">00:00</span></div>
   </div>
@@ -94,6 +108,7 @@
   <div id="control-mode">
     Chế độ: <span id="mode-display">Bàn phím</span>
   </div>
+  <div id="result-message"></div>
 
   <div class="custom-cursor" id="custom-cursor"></div>
   <div class="cursor-dot" id="cursor-dot"></div>
@@ -131,6 +146,9 @@
   let mouseControlActive = false;
   let mouseX = 0;
   let mouseY = 0;
+  let expandedWorld = false;
+  let finalPhase = false;
+  let scoreSent = false;
 
   function preload() {
     astronautImg = loadImage('tenlua.png');
@@ -188,6 +206,7 @@
     finishTime = 0;
     gameDuration = 0;
     controlMode = 'keyboard';
+    scoreSent = false;
 
     player = {
       x: worldWidth / 2,
@@ -356,8 +375,7 @@
     drawMeteors();
     updateBlackholes();
     drawBlackholes();
-    updateLasers();
-    drawLasers();
+    
     drawCoins();
     drawPlayer();
     pop();
@@ -403,6 +421,7 @@
       gameDuration = finishTime - startTime;
       targetZoom = 1;
       showPhaseMessage(`Hoàn thành trong ${formatTime(gameDuration)}! Nhấn R để chơi lại`);
+      sendScoreToServer();
     }
 
     // Hiển thị trạng thái thắng/thua
@@ -416,6 +435,11 @@
            'Chúc mừng! Bạn đã thu thập đủ 30 đồng xu!\nNhấn R để chơi lại', 
            (width/cameraZoom) / 2, (height/cameraZoom) / 2);
       pop();
+      
+      // Gửi điểm khi game over (nếu chưa gửi)
+      if (gameOver && !scoreSent) {
+        sendScoreToServer();
+      }
     }
   }
 
@@ -504,13 +528,6 @@
       resetGame();
     }
     
-    // Bắn laser trong giai đoạn 3
-    if (key === ' ' && currentPhase === 3 && energy >= 20 && millis() - player.lastShot > 300) {
-      shootLaser();
-      player.lastShot = millis();
-      energy -= 20;
-    }
-    
     // Chuyển chế độ điều khiển
     if (key === 'c' || key === 'C') {
       toggleControlMode();
@@ -524,75 +541,6 @@
     } else {
       controlMode = 'keyboard';
       document.getElementById('mode-display').textContent = 'Bàn phím';
-    }
-  }
-
-  function shootLaser() {
-    // Xác định hướng bắn dựa trên hướng di chuyển
-    let angle = atan2(player.vy, player.vx);
-    if (player.vx === 0 && player.vy === 0) {
-      angle = 0; // Mặc định bắn sang phải nếu đứng yên
-    }
-    
-    lasers.push({
-      x: player.x,
-      y: player.y,
-      vx: cos(angle) * 10,
-      vy: sin(angle) * 10,
-      size: 5,
-      life: 100,
-      distance: 0
-    });
-    
-    // if (laserSound) laserSound.play();
-  }
-
-  function updateLasers() {
-    for (let i = lasers.length - 1; i >= 0; i--) {
-      let laser = lasers[i];
-      laser.x += laser.vx;
-      laser.y += laser.vy;
-      laser.life -= 2;
-      laser.distance += dist(0, 0, laser.vx, laser.vy);
-      
-      // Kiểm tra va chạm với lỗ đen
-      for (let j = blackholes.length - 1; j >= 0; j--) {
-        let bh = blackholes[j];
-        if (dist(laser.x, laser.y, bh.x, bh.y) < bh.size/2 + 20) {
-          // Laser bị hút vào lỗ đen
-          lasers.splice(i, 1);
-          bh.life -= 2000; // Giảm thời gian sống của lỗ đen
-          if (bh.life <= 0) {
-            blackholes.splice(j, 1);
-          }
-          break;
-        }
-      }
-      
-      // Xóa laser nếu ra khỏi màn hình hoặc hết đời
-      if (laser.life <= 0 || laser.distance > 1000 || 
-          laser.x < 0 || laser.x > worldWidth || 
-          laser.y < 0 || laser.y > worldHeight) {
-        lasers.splice(i, 1);
-      }
-    }
-  }
-
-  function drawLasers() {
-    for (let laser of lasers) {
-      push();
-      translate(laser.x, laser.y);
-      rotate(atan2(laser.vy, laser.vx));
-      
-      // Vẽ laser
-      fill(0, 255, 255, laser.life);
-      noStroke();
-      rect(0, -laser.size/2, 30, laser.size, 5);
-      
-      // Hiệu ứng sáng
-      fill(255, 255, 255, laser.life * 0.3);
-      rect(0, -laser.size, 40, laser.size * 2, 10);
-      pop();
     }
   }
 
@@ -920,7 +868,7 @@
 
   function updateUI() {
     document.getElementById('score').textContent = score;
-    document.getElementById('meteors').textContent = meteorCount;
+    
     document.getElementById('energy').textContent = energy;
     
     // Cập nhật chỉ báo phase
@@ -948,6 +896,82 @@
       energyElement.style.color = 'yellow';
     } else {
       energyElement.style.color = 'lime';
+    }
+  }
+
+  // 🟢 GỬI ĐIỂM LÊN SERVER
+  function sendScoreToServer() {
+    if (scoreSent) return; // Đảm bảo chỉ gửi một lần
+    scoreSent = true;
+    
+    const username = localStorage.getItem('username') || prompt("Nhập tên người chơi của bạn:");
+    if (username) {
+      localStorage.setItem('username', username); // lưu để lần sau khỏi hỏi lại
+      
+      // Tính thời gian chơi (tính bằng giây)
+      let elapsed = Math.round(gameDuration / 1000);
+      
+      fetch("http://210.245.52.119/api_gamedemso/api/scores/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: username,
+          gameId: 2,          // id game trong bảng games, tùy bạn đặt
+          score: score,
+          timeTaken: elapsed
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        console.log("Kết quả lưu điểm:", data);
+        
+        // Hiển thị kết quả lưu điểm
+        const resultBox = document.getElementById('result-message');
+        resultBox.style.display = 'block';
+        
+        if (data.success) {
+          resultBox.innerHTML = `
+            <h2>${gameComplete ? 'Chúc mừng!' : 'Game Over'}</h2>
+            <p>Điểm của bạn: ${score}/30</p>
+            <p>Thời gian: ${formatTime(gameDuration)}</p>
+            <p style="color:#10b981">✅ Điểm đã được lưu!</p>
+            <p>Nhấn R để chơi lại</p>
+          `;
+        } else {
+          resultBox.innerHTML = `
+            <h2>${gameComplete ? 'Chúc mừng!' : 'Game Over'}</h2>
+            <p>Điểm của bạn: ${score}/30</p>
+            <p>Thời gian: ${formatTime(gameDuration)}</p>
+            <p style="color:#ef4444">❌ Lưu điểm thất bại: ${data.message}</p>
+            <p>Nhấn R để chơi lại</p>
+          `;
+        }
+      })
+      .catch(err => {
+        console.error("Lỗi lưu điểm:", err);
+        
+        // Hiển thị thông báo lỗi
+        const resultBox = document.getElementById('result-message');
+        resultBox.style.display = 'block';
+        resultBox.innerHTML = `
+          <h2>${gameComplete ? 'Chúc mừng!' : 'Game Over'}</h2>
+          <p>Điểm của bạn: ${score}/30</p>
+          <p>Thời gian: ${formatTime(gameDuration)}</p>
+          <p style="color:#ef4444">⚠️ Không kết nối được server.</p>
+          <p>Nhấn R để chơi lại</p>
+        `;
+      });
+    } else {
+      // Người chơi không nhập tên
+      const resultBox = document.getElementById('result-message');
+      resultBox.style.display = 'block';
+      resultBox.innerHTML = `
+        <h2>${gameComplete ? 'Chúc mừng!' : 'Game Over'}</h2>
+        <p>Điểm của bạn: ${score}/30</p>
+        <p>Thời gian: ${formatTime(gameDuration)}</p>
+        <p style="color:#facc15">⚠️ Không lưu điểm (chưa nhập tên).</p>
+        <p>Nhấn R để chơi lại</p>
+      `;
     }
   }
 

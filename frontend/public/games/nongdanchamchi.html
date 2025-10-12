@@ -104,7 +104,7 @@
     top: 50%;
     transform: translate(-50%, -50%);
     width: 500px;
-    height: 400px;
+    height: 500px;
     z-index: 5;
   }
   
@@ -118,7 +118,7 @@
   .apples {
     position: absolute;
     left: 50%;
-    top: 50%;
+    top: 45%;
     transform: translate(-50%, -50%);
     width: 500px;
     height: 400px;
@@ -307,6 +307,8 @@
       <div class="menu-content">
         <h2>Chúc mừng!</h2>
         <p class="win-message">Bạn đã hoàn thành tất cả 5 ván!</p>
+        <div id="finalScore">Tổng điểm: 0</div>
+        <div id="finalTime">Thời gian: 0 phút 0 giây</div>
         <p>Bạn có muốn chơi lại không?</p>
         <button class="menu-btn" id="playAgainBtn">Chơi lại</button>
       </div>
@@ -332,6 +334,8 @@
     <div class="hud">
       <div class="level-indicator">Ván: <span id="currentLevel">1</span>/5</div>
       <div class="hint">Hái táo: <span id="target">1</span> → <span id="maxTarget">10</span></div>
+       <div id="score">Điểm: 0</div>
+      <div id="time">Thời gian: 0 phút 0 giây</div>
       <button id="restartBtn">Làm lại</button>
     </div>
     
@@ -362,6 +366,8 @@ const playAgainBtn = document.getElementById("playAgainBtn");
 const nextLevelBtn = document.getElementById("nextLevelBtn");
 const currentLevelEl = document.getElementById("currentLevel");
 const currentLevelDisplayEl = document.getElementById("currentLevelDisplay");
+const finalScoreEl = document.getElementById("finalScore");
+const finalTimeEl = document.getElementById("finalTime");
 
 // Biến toàn cục
 let target = 1;
@@ -369,6 +375,10 @@ let currentLevel = 1;
 const TOTAL_LEVELS = 5;
 const APPLES_PER_LEVEL = 10;
 let levelColors = ['var(--level-1)', 'var(--level-2)', 'var(--level-3)', 'var(--level-4)', 'var(--level-5)'];
+let usedPositions = [];
+let score = 0;
+let startTime;
+let timeInterval;
 
 // Hàm tạo số ngẫu nhiên
 function rand(min, max) {
@@ -414,7 +424,7 @@ function createApple(num) {
   
   // Tạo ảnh táo
   const img = document.createElement("img");
-  img.src = "apple.png";
+  img.src = "apple1.png";
   img.alt = `Táo số ${num}`;
   
   // Tạo số trên táo
@@ -425,9 +435,33 @@ function createApple(num) {
   el.appendChild(img);
   el.appendChild(number);
   
-  // Đặt vị trí ngẫu nhiên trên cây
-  el.style.left = rand(50, 400) + "px";
-  el.style.top = rand(30, 300) + "px";
+  // Tìm vị trí ngẫu nhiên cho quả táo không bị trùng
+  let positionFound = false;
+  let left, top;
+  
+  while (!positionFound) {
+    left = rand(50, 400);
+    top = rand(30, 300);
+    
+    // Kiểm tra nếu vị trí này đã được sử dụng
+    let overlap = false;
+    for (const pos of usedPositions) {
+      const dist = Math.sqrt(Math.pow(pos.left - left, 2) + Math.pow(pos.top - top, 2));
+      if (dist < 60) { // Khoảng cách nhỏ hơn 60px thì coi là chồng
+        overlap = true;
+        break;
+      }
+    }
+    
+    if (!overlap) {
+      positionFound = true;
+      usedPositions.push({ left, top });
+    }
+  }
+  
+  // Đặt vị trí cho quả táo
+  el.style.left = `${left}px`;
+  el.style.top = `${top}px`;
   
   // Thêm sự kiện click
   el.addEventListener("click", () => onClickApple(el, num));
@@ -442,12 +476,18 @@ function onClickApple(el, num) {
     setTimeout(() => el.style.transform = "scale(1)", 300);
     return;
   }
-  
+
+  // Cộng điểm khi hái táo đúng
+  score += 5;
+
+  // Cập nhật điểm trên HUD
+  document.getElementById("score").textContent = `Điểm: ${score}`;
+
   // đúng → bay về giỏ
   const basketRect = basketEl.getBoundingClientRect();
   const appleRect = el.getBoundingClientRect();
-  const dx = basketRect.left + basketRect.width/2 - (appleRect.left + appleRect.width/2);
-  const dy = basketRect.top + basketRect.height/2 - (appleRect.top + appleRect.height/2);
+  const dx = basketRect.left + basketRect.width / 2 - (appleRect.left + appleRect.width / 2);
+  const dy = basketRect.top + basketRect.height / 2 - (appleRect.top + appleRect.height / 2);
 
   el.style.transition = "transform 1.5s, opacity 1.2s";
   el.style.transform = `translate(${dx}px, ${dy}px) scale(0.3)`;
@@ -467,10 +507,58 @@ function onClickApple(el, num) {
         levelCompleteMenu.classList.remove("hidden");
       } else {
         // Hoàn thành tất cả các ván
-        endMenu.classList.remove("hidden");
-        createConfetti();
+        endGame();
       }
     }, 1000);
+  }
+}
+
+// Hàm kết thúc game
+function endGame() {
+  const elapsedTime = Math.floor((Date.now() - startTime) / 1000);
+  const minutes = Math.floor(elapsedTime / 60);
+  const seconds = elapsedTime % 60;
+  
+  finalScoreEl.textContent = `Tổng điểm: ${score}`;
+  finalTimeEl.textContent = `Thời gian: ${minutes} phút ${seconds} giây`;
+  
+  endMenu.classList.remove("hidden");
+  createConfetti();
+  
+  // Gửi điểm lên server
+  sendScoreToServer(score, elapsedTime);
+}
+
+// 🟢 GỬI ĐIỂM LÊN SERVER
+function sendScoreToServer(score, elapsedTime) {
+  const username = localStorage.getItem('username') || prompt("Nhập tên người chơi của bạn:");
+  if (username) {
+    localStorage.setItem('username', username); // lưu để lần sau khỏi hỏi lại
+    fetch("http://210.245.52.119/api_gamedemso/api/scores/save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        username: username,
+        gameId: 5,          // id game trong bảng games, tùy bạn đặt
+        score: score,
+        timeTaken: elapsedTime
+      })
+    })
+    .then(res => res.json())
+    .then(data => {
+      console.log("Kết quả lưu điểm:", data);
+      if (data.success) {
+        finalScoreEl.innerHTML += "<br><span style='color:#10b981'>✅ Điểm đã được lưu!</span>";
+      } else {
+        finalScoreEl.innerHTML += "<br><span style='color:#ef4444'>❌ Lưu điểm thất bại: " + data.message + "</span>";
+      }
+    })
+    .catch(err => {
+      console.error("Lỗi lưu điểm:", err);
+      finalScoreEl.innerHTML += "<br><span style='color:#ef4444'>⚠️ Không kết nối được server.</span>";
+    });
+  } else {
+    finalScoreEl.innerHTML += "<br><span style='color:#facc15'>⚠️ Không lưu điểm (chưa nhập tên).</span>";
   }
 }
 
@@ -478,17 +566,18 @@ function onClickApple(el, num) {
 function startLevel() {
   levelCompleteMenu.classList.add("hidden");
   applesEl.innerHTML = "";
-  
+
+  usedPositions = []; // Reset lại danh sách vị trí táo
+
   const startNum = (currentLevel - 1) * APPLES_PER_LEVEL + 1;
   const endNum = currentLevel * APPLES_PER_LEVEL;
-  
+
   target = startNum;
   targetEl.textContent = target;
   maxTargetEl.textContent = endNum;
-  
-  // Cập nhật màu sắc cho ván hiện tại
+
   document.documentElement.style.setProperty('--apple', levelColors[currentLevel - 1]);
-  
+
   for (let i = startNum; i <= endNum; i++) {
     applesEl.appendChild(createApple(i));
   }
@@ -506,11 +595,28 @@ function startGame() {
   startMenu.classList.add("hidden");
   endMenu.classList.add("hidden");
   levelCompleteMenu.classList.add("hidden");
-  
+
   currentLevel = 1;
   currentLevelEl.textContent = "1";
   
+  score = 0;  // Reset điểm khi bắt đầu lại
+  document.getElementById("score").textContent = `Điểm: ${score}`;  // Hiển thị điểm ban đầu
+
+  // Reset thời gian
+  if (timeInterval) clearInterval(timeInterval);
+  startTime = Date.now();
+  updateTime();
+  timeInterval = setInterval(updateTime, 1000);
+  
   startLevel();
+}
+
+// Hàm tính thời gian
+function updateTime() {
+  const elapsedTime = Math.floor((Date.now() - startTime) / 1000);  // Tính thời gian đã trôi qua (tính theo giây)
+  const minutes = Math.floor(elapsedTime / 60);
+  const seconds = elapsedTime % 60;
+  document.getElementById("time").textContent = `Thời gian: ${minutes} phút ${seconds} giây`;
 }
 
 // Chơi lại từ đầu

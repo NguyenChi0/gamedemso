@@ -215,15 +215,6 @@
     .car-19 { background-image: url('car9.png'); }
     .car-20 { background-image: url('car10.png'); }
     
-    @keyframes glow {
-      0%, 100% { 
-        box-shadow: 0 3px 8px rgba(0,0,0,0.3), 0 0 0 rgba(255,255,255,0.7);
-      }
-      50% { 
-        box-shadow: 0 3px 8px rgba(0,0,0,0.3), 0 0 20px rgba(255,255,255,0.8);
-      }
-    }
-    
     .car.wrong {
       animation: shake 0.5s ease-in-out;
     }
@@ -413,6 +404,45 @@
 
   function rand(min, max){ return Math.floor(Math.random()*(max-min+1))+min }
 
+  // 🎯 HÀM TÍNH ĐIỂM
+  function calculateScore(elapsed, mistakes) {
+    const baseScore = 10000;
+    const timePenalty = elapsed * 10;
+    const mistakePenalty = mistakes * 100;
+    let score = Math.max(0, baseScore - timePenalty - mistakePenalty);
+    return Math.round(score);
+  }
+
+  // 🟢 HÀM GỬI ĐIỂM LÊN SERVER
+  function sendScoreToServer(score, elapsed, mistakes) {
+    const username = localStorage.getItem('username') || prompt("Nhập tên người chơi của bạn:");
+    
+    if (!username) {
+      return Promise.resolve(null);
+    }
+    
+    localStorage.setItem('username', username);
+    
+    return fetch("http://210.245.52.119/api_gamedemso/api/scores/save", {
+      method: "POST",
+      headers: { 
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        username: username,
+        gameId: 6,
+        score: score,
+        timeTaken: elapsed,
+        mistakes: mistakes
+      })
+    })
+    .then(response => response.json())
+    .catch(error => {
+      console.error("Lỗi kết nối:", error);
+      throw error;
+    });
+  }
+
   function createParkingSpaces(){
     parkingRow1.innerHTML = '';
     parkingRow2.innerHTML = '';
@@ -452,7 +482,7 @@
       
       // Position randomly but avoid parking area
       let x, y, attempts = 0;
-      const carWidth = 60, carHeight = 30;
+      const carWidth = 60, carHeight = 140;
       
       do {
         x = rand(50, window.innerWidth - carWidth - 50);
@@ -478,19 +508,6 @@
       parkingLot.appendChild(car);
       cars.push(car);
     }
-    
-    updateNextTarget();
-  }
-
-  function updateNextTarget(){
-    cars.forEach(car => car.classList.remove('next-target'));
-    if(target <= 20){
-      const nextCar = cars.find(car => 
-        Number(car.dataset.num) === target && 
-        !car.classList.contains('parked')
-      );
-      if(nextCar) nextCar.classList.add('next-target');
-    }
   }
 
   function onCarClick(e){
@@ -509,7 +526,7 @@
       const lotRect = parkingLot.getBoundingClientRect();
       
       const targetX = spaceRect.left - lotRect.left + (spaceRect.width - 60) / 2;
-      const targetY = spaceRect.top - lotRect.top + (spaceRect.height - 30) / 2 - 60;
+      const targetY = spaceRect.top - lotRect.top + (spaceRect.height - 140) / 2;
       
       // Animate car to parking space
       car.style.left = targetX + 'px';
@@ -524,20 +541,47 @@
 
       target++;
       targetEl.textContent = target <= 20 ? target : '✅';
-      updateNextTarget();
       
+      // 🎯 PHẦN HOÀN THÀNH GAME VỚI TÍNH ĐIỂM VÀ GỬI ĐIỂM
       if(target > 20){
         stopTimer();
-        const total = ((performance.now() - startTime)/1000).toFixed(3);
+        const elapsed = (performance.now() - startTime) / 1000;
+        const total = elapsed.toFixed(3);
+        
+        // Tính điểm
+        const score = calculateScore(elapsed, mistakes);
+        
         setTimeout(() => {
           successModal.innerHTML = `
             🎉 Xuất sắc!<br>
             ⏱️ Hoàn thành trong: ${total}s<br>
             ❌ Số lần sai: ${mistakes}<br>
+            🎯 Điểm số: ${score}<br>
             🏆 Bạn là tài xế chuyên nghiệp!
+            <br><div id="saveResult" style="font-size: 16px; margin-top: 10px;"></div>
           `;
           successModal.classList.add('show');
-          setTimeout(() => successModal.classList.remove('show'), 5000);
+          
+          // Gửi điểm lên server
+          const resultElement = document.getElementById('saveResult');
+          resultElement.innerHTML = "📡 Đang lưu điểm...";
+          
+          sendScoreToServer(score, elapsed, mistakes)
+            .then(data => {
+              if (data && data.success) {
+                resultElement.innerHTML = "✅ Điểm đã được lưu!";
+                resultElement.style.color = "#10b981";
+              } else if (data) {
+                resultElement.innerHTML = "❌ Lưu điểm thất bại: " + (data.message || "Lỗi không xác định");
+                resultElement.style.color = "#ef4444";
+              }
+            })
+            .catch(error => {
+              resultElement.innerHTML = "⚠️ Không kết nối được server.";
+              resultElement.style.color = "#facc15";
+            });
+          
+          setTimeout(() => successModal.classList.remove('show'), 8000);
         }, 800);
       }
     } else {
@@ -581,7 +625,7 @@
     
     activeCars.forEach(car => {
       let x, y, attempts = 0;
-      const carWidth = 60, carHeight = 30;
+      const carWidth = 60, carHeight = 140;
       
       do {
         x = rand(50, window.innerWidth - carWidth - 50);

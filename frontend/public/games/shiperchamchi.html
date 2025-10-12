@@ -9,26 +9,25 @@
     #app{width:100%;height:100%;display:block;overflow:hidden}
     .info{position:fixed;left:10px;top:10px;background:rgba(0,0,0,0.6);color:#fff;padding:8px;border-radius:6px;font-family:sans-serif;white-space:pre-line}
     .mission{top:60px;left:10px}
-    .house-info{top:180px;left:10px}
   </style>
 </head>
 <body>
   <div id="app"></div>
-  <div class="info">WASD để di chuyển — Space nhảy (nhỏ) — Shift chạy — E lên/xuống xe — G lấy/giao hàng — R nạp nhiên liệu</div>
+  <div class="info">WASD để di chuyển — Space nhảy (nhỏ) — Shift chạy — E lên/xuống xe — G lấy/giao hàng</div>
 
   <script type="importmap">
 {
   "imports": {
-    "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
   }
 }
 </script>
 
   <script type="module">
     
-    import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
-    import { GLTFLoader } from 'https://unpkg.com/three@0.160.0/examples/jsm/loaders/GLTFLoader.js';
-
+    import * as THREE from 'three';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0xa0a0a0);
@@ -113,13 +112,6 @@
     missionDiv.style.top = "60px";
     missionDiv.innerText = '';
     document.body.appendChild(missionDiv);
-    
-    // UI thông tin nhà
-    const houseInfoDiv = document.createElement('div');
-    houseInfoDiv.className = "info house-info";
-    houseInfoDiv.style.top = "180px";
-    houseInfoDiv.innerText = '';
-    document.body.appendChild(houseInfoDiv);
 
     function updateMissionText(){
       const txt = hasCargo 
@@ -130,7 +122,7 @@
 
     function newMission(start){
       currentPickup = start;
-      currentDrop = (start % 20) + 1; // sau nhà 20 là nhà 1
+      currentDrop = (start % 25) + 1; // sau nhà 25 là nhà 1
       hasCargo = false;
       updateMissionText();
     }
@@ -287,25 +279,6 @@
       createTree(t.type, t.x, t.z);
     }
 
-    // ====== Hàm tạo các kiểu nhà khác nhau ======
-    function createHouse(x, z){
-      const bodyGeo = new THREE.BoxGeometry(40, 30, 40);
-      const bodyMat = new THREE.MeshStandardMaterial({color: 0xffd27f});
-      const body = new THREE.Mesh(bodyGeo, bodyMat);
-      body.position.set(x, 15, z);
-      body.castShadow = true;
-
-      const roofGeo = new THREE.ConeGeometry(30, 20, 4);
-      const roofMat = new THREE.MeshStandardMaterial({color: 0x8b0000});
-      const roof = new THREE.Mesh(roofGeo, roofMat);
-      roof.position.set(x, 40, z);
-      roof.rotation.y = Math.PI/4;
-      roof.castShadow = true;
-
-      scene.add(body);
-      scene.add(roof);
-    }
-
     // Tạo nhà có số và lưu vị trí
     function createNumberedHouse(x, z, num){
       // Chọn kiểu nhà dựa trên số nhà
@@ -352,6 +325,10 @@
           roof2.position.set(x, 42.5, z);
           roof2.castShadow = true;
 
+          house = new THREE.Group();
+          house.add(body2);
+          house.add(roof2);
+
           // Cửa sổ
           const windowGeo = new THREE.BoxGeometry(8, 8, 1);
           const windowMat = new THREE.MeshStandardMaterial({color: 0x87ceeb});
@@ -363,13 +340,8 @@
               25,
               z + (i < 2 ? -18 : 18)
             );
-            house = house || new THREE.Group();
             house.add(window);
           }
-
-          house = house || new THREE.Group();
-          house.add(body2);
-          house.add(roof2);
           break;
           
         case 3:
@@ -476,7 +448,6 @@
       ctx.fillText(String(num), 64, 64);
 
       const tex = new THREE.CanvasTexture(canvas);
-      tex.needsUpdate = true;
       const labelMat = new THREE.MeshBasicMaterial({map: tex, transparent: true});
       const labelGeo = new THREE.PlaneGeometry(20,20);
       const label = new THREE.Mesh(labelGeo, labelMat);
@@ -486,15 +457,6 @@
       scene.add(label);
 
       housePositions.push(new THREE.Vector3(x, 0, z)); // lưu vị trí (y=0 dùng cho kiểm tra XZ)
-    }
-
-    function createRoad(x, z, length=200, width=20){
-      const roadGeo = new THREE.BoxGeometry(width, 1, length);
-      const roadMat = new THREE.MeshStandardMaterial({color: 0x333333});
-      const road = new THREE.Mesh(roadGeo, roadMat);
-      road.position.set(x, 0.5, z);
-      road.receiveShadow = true;
-      scene.add(road);
     }
 
     // Tạo 25 căn nhà với vị trí cố định
@@ -536,159 +498,42 @@
 
     // ------- Car -------
     let inCar = false;
-
-
-    /*function createCar(x, z){
+    function createCar(x, z){
+      const loader = new GLTFLoader();
       const group = new THREE.Group();
 
-      const bodyGeo = new THREE.BoxGeometry(20, 15, 40);
-      const bodyMat = new THREE.MeshStandardMaterial({color: 0xff0000});
-      const body = new THREE.Mesh(bodyGeo, bodyMat);
-      body.position.y = 10;
-      body.castShadow = true;
-      group.add(body);
-
-      const topGeo = new THREE.BoxGeometry(20, 10, 18);
-      const topMat = new THREE.MeshStandardMaterial({color: 0x990000});
-      const top = new THREE.Mesh(topGeo, topMat);
-      top.position.set(0, 18, 0);
-      group.add(top);
-
-      const wheelGeo = new THREE.CylinderGeometry(5, 5, 4, 16);
-      const wheelMat = new THREE.MeshStandardMaterial({color: 0x000000});
-      for(let dx of [-9, 9]){ // nhỏ lại cho tỉ lệ ổn
-        for(let dz of [-15, 15]){
-          const wheel = new THREE.Mesh(wheelGeo, wheelMat);
-          wheel.rotation.z = Math.PI/2;
-          wheel.position.set(dx, 5, dz);
-          group.add(wheel);
-        }
-      }
+      loader.load('car.glb', (gltf)=>{
+        const model = gltf.scene;
+        model.scale.set(10,10,10);
+        model.position.set(0,0,0);
+        model.traverse((child)=>{
+          if(child.isMesh){
+            child.castShadow = true;
+          }
+        });
+        group.add(model);
+      }, undefined, (err)=>{
+        console.error('Lỗi load xe:', err);
+        // Fallback: tạo xe đơn giản nếu không load được file .glb
+        const bodyGeo = new THREE.BoxGeometry(30, 15, 60);
+        const bodyMat = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+        const body = new THREE.Mesh(bodyGeo, bodyMat);
+        body.position.y = 7.5;
+        body.castShadow = true;
+        group.add(body);
+        
+        const cabinGeo = new THREE.BoxGeometry(25, 12, 25);
+        const cabinMat = new THREE.MeshStandardMaterial({ color: 0x4444ff });
+        const cabin = new THREE.Mesh(cabinGeo, cabinMat);
+        cabin.position.set(0, 19, 10);
+        cabin.castShadow = true;
+        group.add(cabin);
+      });
 
       group.position.set(x, 0, z);
       scene.add(group);
       return group;
     }
-
-    */
-
-
-    
-    function createCar(x, z){
-  const loader = new GLTFLoader();
-  const group = new THREE.Group();
-
-  loader.load('car.glb', (gltf)=>{
-    const model = gltf.scene;
-    model.scale.set(10,10,10); // chỉnh tỉ lệ nếu cần
-    model.position.set(0,0,0); // vị trí relative trong group
-    model.traverse((child)=>{
-      if(child.isMesh){
-        child.castShadow = true;
-      }
-    });
-    group.add(model);
-  }, undefined, (err)=>{
-    console.error('Lỗi load xe:', err);
-  });
-
-  group.position.set(x, 0, z);
-  scene.add(group);
-  return group;
-}
-
-
-    // ------- Fuel system -------
-    let fuel = 100;          // nhiên liệu xe
-    const maxFuel = 100;
-    const fuelDiv = document.createElement('div');
-    fuelDiv.className = "info";
-    fuelDiv.style.top = "120px";
-    document.body.appendChild(fuelDiv);
-
-    function updateFuelText(){
-      fuelDiv.innerText = `Nhiên liệu: ${fuel.toFixed(0)} / ${maxFuel}`;
-    }
-    updateFuelText();
-
-    // giảm nhiên liệu khi lái xe
-    function consumeFuel(dt){
-      if(inCar && fuel > 0){
-        fuel -= dt * 5; // hao nhanh/chậm tùy chỉnh
-        if(fuel < 0) fuel = 0;
-        updateFuelText();
-      }
-    }
-
-    // ------- Gas Station -------
-    function createGasStation(x, z){
-      const baseGeo = new THREE.BoxGeometry(60, 20, 40);
-      const baseMat = new THREE.MeshStandardMaterial({color:0x999999});
-      const base = new THREE.Mesh(baseGeo, baseMat);
-      base.position.set(x, 10, z);
-      base.castShadow = true;
-      scene.add(base);
-
-      // biển hiệu GAS
-      const canvas = document.createElement('canvas');
-      canvas.width = 256; canvas.height = 128;
-      const ctx = canvas.getContext('2d');
-      ctx.fillStyle = 'yellow';
-      ctx.fillRect(0,0,256,128);
-      ctx.fillStyle = 'black';
-      ctx.font = 'bold 80px Arial';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText("GAS", 128, 64);
-      const tex = new THREE.CanvasTexture(canvas);
-      const signMat = new THREE.MeshBasicMaterial({map: tex});
-      const signGeo = new THREE.PlaneGeometry(50, 25);
-      const sign = new THREE.Mesh(signGeo, signMat);
-      sign.position.set(x, 40, z);
-      scene.add(sign);
-
-      return base;
-    }
-
-    const gasStation = createGasStation(100, -50);
-
-    // phím R để nạp nhiên liệu khi gần trạm xăng
-    window.addEventListener('keydown', e=>{
-      if(e.key.toLowerCase() === 'r'){
-        const target = inCar ? car : player;
-        const dist = distanceXZ(target.position, gasStation.position);
-        if(dist < 60){
-          fuel = maxFuel;
-          updateFuelText();
-          console.log("Đã nạp đầy nhiên liệu!");
-        }
-      }
-    });
-
-    // ------- NPC moving cars/people -------
-    const npcs = [];
-
-    function createNPC(x, z, color=0x00ff00){
-      const geo = new THREE.BoxGeometry(10, 20, 10);
-      const mat = new THREE.MeshStandardMaterial({color});
-      const npc = new THREE.Mesh(geo, mat);
-      npc.position.set(x, 10, z);
-      scene.add(npc);
-      npcs.push({mesh: npc, dir: 1});
-    }
-
-   
-
-    // NPC logic: di chuyển qua lại
-    function updateNPCs(dt){
-      for(const n of npcs){
-        n.mesh.position.x += n.dir * dt * 50; // tốc độ 50
-        if(n.mesh.position.x > 300) n.dir = -1;
-        if(n.mesh.position.x < -300) n.dir = 1;
-      }
-    }
-
-    const car = createCar(100, 0);
 
     // ------- Cargo visual -------
     const cargoGeo = new THREE.BoxGeometry(10,6,8);
@@ -709,7 +554,6 @@
         if(!inCar && distToCar < 30){
           inCar = true;
           player.visible = false;
-          // khi lên xe, đặt player vị trí gần xe (unused) - cargo sẽ gắn theo car nếu hasCargo
           console.log("Đã lên xe!");
           updateMissionText();
         } else if(inCar){
@@ -739,12 +583,12 @@
           coins += 50;
           console.log(`Đã giao hàng tại nhà ${currentDrop}, +50 xu`);
           newMission(currentDrop);
-        } else {
-          // optional feedback
-          // console.log('Không ở đúng vị trí lấy/giao');
         }
       }
     });
+
+    // Tạo xe
+    const car = createCar(100, 0);
 
     // ------- Camera init -------
     (function initCamera(){
@@ -757,6 +601,7 @@
     })();
 
     updateMissionText(); // hiển thị ban đầu
+    newMission(1); // Khởi tạo nhiệm vụ đầu tiên
 
     // ------- Main animate -------
     function animate(){
@@ -770,7 +615,7 @@
 
       const running = keys.shift;
       const baseSpeed = walkSpeed * (running ? runMultiplier : 1);
-      const speed = baseSpeed * (inCar ? 2 : 1); // 🚗 tốc độ x3 khi trong xe
+      const speed = baseSpeed * (inCar ? 2 : 1);
       const len = Math.hypot(dirX, dirZ);
       if(len>0){ dirX/=len; dirZ/=len; }
 
@@ -794,12 +639,12 @@
             // base desired (the "natural" angle from inputWorld)
             let desired = Math.atan2(inputWorld.x, -inputWorld.z);
 
-            const baseForward = new THREE.Vector3(0,0,1); // chỉnh nếu model mũi ko phải -Z
+            const baseForward = new THREE.Vector3(0,0,1);
 
             // --- diagonal handling: pick +90 or -90 so that forward aligns with inputWorld ---
             if(Math.abs(dirX) > 0.0001 && Math.abs(dirZ) > 0.0001){
               // propose two offsets
-              const s = Math.sign(inputWorld.x || dirX); // hướng ngang của input (fallback dirX)
+              const s = Math.sign(inputWorld.x || dirX);
               const offsets = [ s * Math.PI/2, -s * Math.PI/2 ];
 
               // choose offset that makes candidateForward dot inputWorld > 0
@@ -809,16 +654,13 @@
                 const testQuat = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, cand, 0));
                 const candidateForward = baseForward.clone().applyQuaternion(testQuat).normalize();
                 const d = candidateForward.dot(inputWorld);
-                if(d > 0.01){ // chút ngưỡng nhỏ để tránh trường hợp sát biên
+                if(d > 0.01){
                   picked = i;
                   break;
                 }
-                // nếu cả hai đều <= 0.01 thì vẫn giữ offsets[0] và chúng ta sẽ xử lý tiếp bên dưới
               }
               desired += offsets[picked];
-              // (không làm auto +PI nữa vì ta đã thử cả chiều)
             } else {
-              // not diagonal: keep existing guard to flip 180° if model forward is opposite
               const testQuat = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, desired, 0));
               const candidateForward = baseForward.clone().applyQuaternion(testQuat).normalize();
               if(candidateForward.dot(inputWorld) < 0){
@@ -845,8 +687,14 @@
       // Jump physics for player (only when not in car)
       if(!inCar){
         if(keys.space && onGround){ verticalVel = jumpSpeed; onGround=false; }
-        if(!onGround){ verticalVel += gravity*(60*dt); player.position.y += verticalVel*(60*dt);
-          if(player.position.y <= playerSize){ player.position.y = playerSize; verticalVel=0; onGround=true; }
+        if(!onGround){ 
+          verticalVel += gravity*(60*dt); 
+          player.position.y += verticalVel*(60*dt);
+          if(player.position.y <= playerSize){ 
+            player.position.y = playerSize; 
+            verticalVel=0; 
+            onGround=true; 
+          }
         }
       } else {
         // nếu ở trong xe, fix y
@@ -878,42 +726,16 @@
       const y = hDist * Math.tan(tiltRad);
       const camPos = new THREE.Vector3(target.position.x, target.position.y + y, target.position.z + hDist);
 
-      camera.position.lerp(camPos, 1); // mượt hơn
+      camera.position.lerp(camPos, 1);
       camera.lookAt(target.position.x, target.position.y + 10, target.position.z);
 
-      // Cập nhật thông tin nhà gần nhất
-      updateNearestHouseInfo();
-
-      // Update mission UI (in case coins/hasCargo changed)
+      // Update mission UI
       updateMissionText();
-      updateNPCs(dt);
-      consumeFuel(dt);
 
       renderer.render(scene,camera);
       requestAnimationFrame(animate);
     }
-
-    // Hàm cập nhật thông tin nhà gần nhất
-    function updateNearestHouseInfo() {
-      const target = inCar ? car : player;
-      let nearestHouse = null;
-      let minDistance = Infinity;
-      
-      for (let i = 0; i < housePositions.length; i++) {
-        const dist = distanceXZ(target.position, housePositions[i]);
-        if (dist < minDistance) {
-          minDistance = dist;
-          nearestHouse = i + 1;
-        }
-      }
-      
-      if (nearestHouse && minDistance < 100) {
-        houseInfoDiv.innerText = `Nhà gần nhất: ${nearestHouse}\nKhoảng cách: ${minDistance.toFixed(1)}m`;
-      } else {
-        houseInfoDiv.innerText = '';
-      }
-    }
-
+    
     animate();
     document.body.addEventListener('click', ()=>{window.focus();});
   </script>

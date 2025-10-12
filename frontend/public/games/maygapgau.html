@@ -1,553 +1,632 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="UTF-8">
-  <title>Game Gắp Bóng Vật Lý - Đến 50</title>
-  <style>
-    body {
-      margin: 0;
-      background: linear-gradient(135deg, #1a1a2e, #16213e);
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-      font-family: 'Arial', sans-serif;
-      color: #fff;
-    }
-    
-    .game-container {
-      position: relative;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 20px;
-    }
-    
-    canvas {
-      background: linear-gradient(to bottom, #2c3e50, #34495e);
-      border: 5px solid #ecf0f1;
-      border-radius: 15px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-    }
-    
-    .controls {
-      display: flex;
-      gap: 20px;
-      align-items: center;
-      background: rgba(255,255,255,0.1);
-      padding: 15px 25px;
-      border-radius: 25px;
-      backdrop-filter: blur(10px);
-    }
-    
-    .btn {
-      padding: 12px 24px;
-      border: none;
-      border-radius: 20px;
-      font-size: 16px;
-      font-weight: bold;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      background: linear-gradient(45deg, #3498db, #2980b9);
-      color: white;
-      box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
-    }
-    
-    .btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
-    }
-    
-    .btn.shuffle {
-      background: linear-gradient(45deg, #e74c3c, #c0392b);
-      box-shadow: 0 4px 15px rgba(231, 76, 60, 0.3);
-    }
-    
-    .btn.shuffle:hover {
-      box-shadow: 0 6px 20px rgba(231, 76, 60, 0.4);
-    }
-    
-    .info {
-      text-align: center;
-      background: rgba(255,255,255,0.1);
-      padding: 10px 20px;
-      border-radius: 15px;
-      backdrop-filter: blur(10px);
-      max-width: 600px;
-    }
-    
-    .guide {
-      font-size: 16px;
-      margin-bottom: 5px;
-      opacity: 0.9;
-    }
-    
-    .message {
-      font-size: 20px;
-      font-weight: bold;
-      color: #f39c12;
-      min-height: 25px;
-    }
-    
-    .score {
-      font-size: 18px;
-      color: #2ecc71;
-      margin-top: 5px;
-    }
-    
-    .level-selector {
-      margin-top: 10px;
-      display: flex;
-      gap: 10px;
-      align-items: center;
-    }
-    
-    .level-btn {
-      padding: 8px 16px;
-      border: none;
-      border-radius: 15px;
-      font-size: 14px;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      background: rgba(255,255,255,0.2);
-      color: white;
-    }
-    
-    .level-btn.active {
-      background: linear-gradient(45deg, #9b59b6, #8e44ad);
-      box-shadow: 0 4px 10px rgba(155, 89, 182, 0.4);
-    }
-    
-    .level-btn:hover {
-      background: rgba(255,255,255,0.3);
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Đào Vàng</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(180deg, #87CEEB 0%, #DEB887 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+        #gameContainer {
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            overflow: hidden;
+            position: relative;
+        }
+        canvas {
+            display: block;
+        }
+        #ui {
+            background: #2c1810;
+            color: #FFD700;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        .stat {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        #instruction {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.9);
+            color: #FFD700;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            font-size: 20px;
+            max-width: 400px;
+            z-index: 10;
+        }
+        #instruction h2 {
+            margin-bottom: 20px;
+            color: #FFA500;
+        }
+        #instruction button {
+            margin-top: 20px;
+            padding: 12px 30px;
+            font-size: 18px;
+            background: #FFD700;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.3s;
+        }
+        #instruction button:hover {
+            background: #FFA500;
+            transform: scale(1.05);
+        }
+        #result-box {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.9);
+            color: #FFD700;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            font-size: 20px;
+            max-width: 400px;
+            z-index: 10;
+        }
+        #result-box button {
+            margin-top: 20px;
+            padding: 12px 30px;
+            font-size: 18px;
+            background: #FFD700;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.3s;
+        }
+        #result-box button:hover {
+            background: #FFA500;
+            transform: scale(1.05);
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
 </head>
 <body>
-  <div class="game-container">
-    <div class="info">
-      <div class="guide">← → để di chuyển | Space hoặc ↓ để gắp</div>
-      <div class="message" id="message"></div>
-      <div class="score">Đã gắp theo thứ tự: <span id="scoreText">Chưa có</span></div>
-      <div class="level-selector">
-        <button class="level-btn active" onclick="changeLevel(10)">Mức dễ (1-10)</button>
-        <button class="level-btn" onclick="changeLevel(20)">Mức trung (1-20)</button>
-        <button class="level-btn" onclick="changeLevel(50)">Mức khó (1-50)</button>
-      </div>
+    <div id="gameContainer">
+        <div id="ui">
+            <div class="stat">Điểm: <span id="score">0</span></div>
+            <div class="stat">Ván: <span id="level">1</span>/5</div>
+            <div class="stat">Thời gian: <span id="timer">0</span>s</div>
+        </div>
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
     </div>
     
-    <canvas id="gameCanvas" width="800" height="600"></canvas>
-    
-    <div class="controls">
-      <button class="btn shuffle" onclick="shuffleBalls()">🌪️ Xáo Trộn</button>
-      <button class="btn" onclick="resetGame()">🔄 Chơi Lại</button>
+    <div id="instruction">
+        <h2>🎮 GAME ĐÀO VÀNG 🎮</h2>
+        <p>Nhấn SPACE hoặc Click để thả móc!</p>
+        <p style="margin-top: 15px; font-size: 16px;">
+            Câu theo thứ tự số từ 1 đến 50 (5 ván)<br>
+            Mỗi ván có 10 số: Ván 1 (1-10), Ván 2 (11-20), ...<br>
+            Câu sai thứ tự sẽ THUA ngay lập tức!
+        </p>
+        <button onclick="startGame()">BẮT ĐẦU CHƠI</button>
     </div>
-  </div>
 
-  <script>
-    const canvas = document.getElementById("gameCanvas");
-    const ctx = canvas.getContext("2d");
-    const messageBox = document.getElementById("message");
-    const scoreText = document.getElementById("scoreText");
-    const levelButtons = document.querySelectorAll('.level-btn');
+    <div id="result-box" class="hidden">
+        <h2 id="result-title">KẾT QUẢ</h2>
+        <p id="result-message"></p>
+        <button onclick="restartGame()">CHƠI LẠI</button>
+    </div>
 
-    // Thông số vật lý
-    const GRAVITY = 0.5;
-    const BOUNCE = 0.3;
-    const FRICTION = 0.1;
-    const AIR_RESISTANCE = 0.998;
-    
-    // Thông số game
-    let clawX = canvas.width / 2;
-    let clawWidth = 50;
-    let clawHeight = 25;
-    let clawMove = 13;
-    let ropeLength = 60;
-    let isDropping = false;
-    let isReturning = false;
-    let nextTarget = 1;
-    let caughtNumbers = [];
-    let maxBalls = 10; // Mặc định là 10 bóng
-    
-    // Tạo bóng
-    let balls = [];
-    
-    function initBalls() {
-      balls = [];
-      const ballSize = maxBalls <= 10 ? 45 : maxBalls <= 20 ? 35 : 25;
-      
-      for (let i = 1; i <= maxBalls; i++) {
-        balls.push({
-          x: Math.random() * (canvas.width - 100) + 50,
-          y: Math.random() * 150 + (canvas.height - 200),
-          vx: (Math.random() - 0.5) * 3,
-          vy: (Math.random() - 0.5) * 2,
-          size: ballSize,
-          num: i,
-          caught: false,
-          onGround: false,
-          mass: 4 + Math.random() * 0.5
-        });
-      }
-    }
-    
-    let caughtBall = null;
-    
-    function drawClaw() {
-      // Vẽ thanh treo
-      ctx.strokeStyle = "#95a5a6";
-      ctx.lineWidth = 8;
-      ctx.beginPath();
-      ctx.moveTo(0, 30);
-      ctx.lineTo(canvas.width, 30);
-      ctx.stroke();
-      
-      // Vẽ dây cáp
-      ctx.strokeStyle = "#7f8c8d";
-      ctx.lineWidth = 4;
-      ctx.beginPath();
-      ctx.moveTo(clawX, 30);
-      ctx.lineTo(clawX, ropeLength + 30);
-      ctx.stroke();
-      
-      // Vẽ đầu gắp
-      const clawY = ropeLength + 30;
-      
-      // Thân gắp
-      ctx.fillStyle = "#ecf0f1";
-      ctx.fillRect(clawX - clawWidth / 2, clawY, clawWidth, clawHeight);
-      
-      // Chi tiết gắp
-      ctx.fillStyle = "#bdc3c7";
-      ctx.fillRect(clawX - clawWidth / 2, clawY, 5, clawHeight + 10);
-      ctx.fillRect(clawX + clawWidth / 2 - 5, clawY, 5, clawHeight + 10);
-      
-      // Móc gắp
-      ctx.strokeStyle = "#95a5a6";
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.arc(clawX - clawWidth / 3, clawY + clawHeight + 8, 8, 0, Math.PI);
-      ctx.arc(clawX + clawWidth / 3, clawY + clawHeight + 8, 8, 0, Math.PI);
-      ctx.stroke();
-    }
-    
-    function getColorForNumber(num) {
-      // Tạo màu dựa trên số
-      const hue = (num * 137.508) % 360; // Sử dụng góc vàng để phân bố đều màu sắc
-      return `hsl(${hue}, 70%, 60%)`;
-    }
-    
-    function drawBalls() {
-      balls.forEach(ball => {
-        if (!ball.caught) {
-          // Bóng với gradient
-          const mainColor = getColorForNumber(ball.num);
-          const darkColor = mainColor.replace('60%)', '50%)');
-          
-          const gradient = ctx.createRadialGradient(
-            ball.x - ball.size/6, ball.y - ball.size/6, 0,
-            ball.x, ball.y, ball.size / 2
-          );
-          
-          gradient.addColorStop(0, darkColor);
-          gradient.addColorStop(1, mainColor);
-          
-          ctx.beginPath();
-          ctx.arc(ball.x, ball.y, ball.size / 2, 0, Math.PI * 2);
-          ctx.fillStyle = gradient;
-          ctx.fill();
-          
-          // Viền
-          ctx.strokeStyle = "rgba(255,255,255,0.3)";
-          ctx.lineWidth = 2;
-          ctx.stroke();
-          
-          // Số
-          ctx.fillStyle = "white";
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          const fontSize = ball.size / 2.5;
-          ctx.font = `bold ${fontSize}px Arial`;
-          ctx.strokeStyle = "rgba(0,0,0,0.5)";
-          ctx.lineWidth = 3;
-          ctx.strokeText(ball.num, ball.x, ball.y);
-          ctx.fillText(ball.num, ball.x, ball.y);
-          
-          // Highlight cho số cần gắp tiếp theo
-          if (ball.num === nextTarget) {
-            ctx.beginPath();
-            ctx.arc(ball.x, ball.y, ball.size / 2 + 8, 0, Math.PI * 2);
-            ctx.strokeStyle = "#f1c40f";
-            ctx.lineWidth = 4;
-            ctx.setLineDash([10, 5]);
-            ctx.stroke();
-            ctx.setLineDash([]);
-          }
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        let gameStarted = false;
+        let score = 0;
+        let timeElapsed = 0;
+        let gameTimer;
+        let startTime = 0;
+        let nextNumber = 1;
+        let currentLevel = 1;
+        let maxLevel = 5;
+        
+        // Tải hình ảnh
+        const images = {};
+        const imageSources = {
+            background: 'backgroundminer.png',
+            miner: 'miner.png',
+            hook: 'daumoc.png',
+            gold1: 'gold1.png',
+            gold2: 'gold2.png',
+            gold3: 'gold3.png',
+            gold4: 'gold4.png'
+        };
+        
+        // Biến để theo dõi số lượng ảnh đã tải
+        let imagesLoaded = 0;
+        const totalImages = Object.keys(imageSources).length;
+        
+        // Tải tất cả hình ảnh
+        function loadImages() {
+            return new Promise((resolve) => {
+                for (let key in imageSources) {
+                    images[key] = new Image();
+                    images[key].onload = () => {
+                        imagesLoaded++;
+                        if (imagesLoaded === totalImages) {
+                            resolve();
+                        }
+                    };
+                    images[key].onerror = () => {
+                        console.error(`Lỗi tải ảnh: ${imageSources[key]}`);
+                        imagesLoaded++;
+                        if (imagesLoaded === totalImages) {
+                            resolve();
+                        }
+                    };
+                    images[key].src = imageSources[key];
+                }
+            });
         }
-      });
-    }
-    
-    function updateBalls() {
-      const ground = canvas.height - 20;
-      
-      balls.forEach(ball => {
-        if (!ball.caught) {
-          // Áp dụng trọng lực
-          ball.vy += GRAVITY;
-          
-          // Áp dụng lực cản không khí
-          ball.vx *= AIR_RESISTANCE;
-          ball.vy *= AIR_RESISTANCE;
-          
-          // Cập nhật vị trí
-          ball.x += ball.vx;
-          ball.y += ball.vy;
-          
-          // Va chạm với đất
-          if (ball.y + ball.size / 2 > ground) {
-            ball.y = ground - ball.size / 2;
-            ball.vy *= -BOUNCE;
-            ball.vx *= FRICTION;
-            ball.onGround = true;
-            
-            // Dừng lại nếu vận tốc quá nhỏ
-            if (Math.abs(ball.vy) < 0.5) ball.vy = 0;
-            if (Math.abs(ball.vx) < 0.2) ball.vx = 0;
-          } else {
-            ball.onGround = false;
-          }
-          
-          // Va chạm với tường
-          if (ball.x - ball.size / 2 < 0) {
-            ball.x = ball.size / 2;
-            ball.vx *= -BOUNCE;
-          }
-          if (ball.x + ball.size / 2 > canvas.width) {
-            ball.x = canvas.width - ball.size / 2;
-            ball.vx *= -BOUNCE;
-          }
-          
-          // Va chạm với trần (vùng gắp)
-          if (ball.y - ball.size / 2 < 60) {
-            ball.y = 60 + ball.size / 2;
-            ball.vy *= -BOUNCE;
-          }
-          
-          // Va chạm giữa các bóng
-          balls.forEach(other => {
-            if (ball !== other && !other.caught && !ball.caught) {
-              let dx = ball.x - other.x;
-              let dy = ball.y - other.y;
-              let dist = Math.sqrt(dx * dx + dy * dy);
-              let minDist = (ball.size + other.size) / 2;
-              
-              if (dist < minDist && dist > 0) {
-                // Tách bóng ra khỏi nhau
-                let overlap = minDist - dist;
-                let separationX = (dx / dist) * overlap * 0.5;
-                let separationY = (dy / dist) * overlap * 0.5;
+        
+        // Thợ mỏ và móc
+        const miner = {
+            x: canvas.width / 2,
+            y: 80,
+            hookAngle: Math.PI / 2,
+            hookSpeed: 0.015,
+            hookLength: 60, // Tăng kích thước móc
+            hookX: 0,
+            hookY: 0,
+            isExtending: false,
+            isCatching: false,
+            caughtItem: null,
+            maxLength: 500,
+            currentLength: 60, // Tăng kích thước móc
+            extendSpeed: 5,
+            retractSpeed: 3,
+            minAngle: Math.PI * 0.1,
+            maxAngle: Math.PI * 0.9
+        };
+        
+        // Các vật phẩm
+        let items = [];
+        
+        class Item {
+            constructor(x, y, type, number) {
+                this.x = x;
+                this.y = y;
+                this.type = type;
+                this.number = number;
+                this.caught = false;
                 
-                ball.x += separationX;
-                ball.y += separationY;
-                other.x -= separationX;
-                other.y -= separationY;
-                
-                // Tính toán va chạm đàn hồi
-                let relativeVelX = ball.vx - other.vx;
-                let relativeVelY = ball.vy - other.vy;
-                
-                let speed = relativeVelX * dx / dist + relativeVelY * dy / dist;
-                
-                if (speed < 0) return;
-                
-                speed *= BOUNCE;
-                
-                let impulseX = speed * dx / dist;
-                let impulseY = speed * dy / dist;
-                
-                let totalMass = ball.mass + other.mass;
-                
-                ball.vx -= impulseX * other.mass / totalMass;
-                ball.vy -= impulseY * other.mass / totalMass;
-                other.vx += impulseX * ball.mass / totalMass;
-                other.vy += impulseY * ball.mass / totalMass;
-              }
+                switch(type) {
+                    case 'gold_small':
+                        this.radius = 25; // Tăng kích thước
+                        this.weight = 1;
+                        this.image = images.gold1;
+                        break;
+                    case 'gold_large':
+                        this.radius = 35; // Tăng kích thước
+                        this.weight = 2;
+                        this.image = images.gold2;
+                        break;
+                    case 'diamond':
+                        this.radius = 30; // Tăng kích thước
+                        this.weight = 1;
+                        this.image = images.gold3;
+                        break;
+                    case 'rock':
+                        this.radius = 30; // Tăng kích thước
+                        this.weight = 4;
+                        this.image = images.gold4;
+                        break;
+                }
             }
-          });
-        }
-      });
-    }
-    
-    function updateClaw() {
-      if (isDropping) {
-        ropeLength += 8;
-        let clawTipX = clawX;
-        let clawTipY = ropeLength + 30 + clawHeight;
-        
-        if (ropeLength > canvas.height - 100) {
-          isDropping = false;
-          isReturning = true;
-        }
-        
-        // Kiểm tra gắp bóng
-        balls.forEach(ball => {
-          if (!ball.caught) {
-            let dx = clawTipX - ball.x;
-            let dy = clawTipY - ball.y;
-            let distance = Math.sqrt(dx * dx + dy * dy);
             
-            if (distance < ball.size / 2 + clawWidth / 3) {
-              ball.caught = true;
-              caughtBall = ball;
-              isDropping = false;
-              isReturning = true;
+            draw() {
+                // Vẽ hình ảnh vật phẩm
+                if (this.image) {
+                    ctx.drawImage(this.image, this.x - this.radius, this.y - this.radius, this.radius * 2, this.radius * 2);
+                }
+                
+                // Vẽ số trên vật phẩm
+                ctx.fillStyle = '#000';
+                ctx.font = 'bold 18px Arial'; // Tăng kích thước font
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(this.number, this.x, this.y);
             }
-          }
-        });
-        
-      } else if (isReturning) {
-        ropeLength -= 8;
-        
-        if (caughtBall) {
-          caughtBall.x = clawX;
-          caughtBall.y = ropeLength + 30 + clawHeight + caughtBall.size / 2;
-          caughtBall.vx = 0;
-          caughtBall.vy = 0;
         }
         
-        if (ropeLength <= 60) {
-          isReturning = false;
-          
-          if (caughtBall) {
-            if (caughtBall.num === nextTarget) {
-              // Gắp đúng số
-              caughtNumbers.push(caughtBall.num);
-              nextTarget++;
-              
-              messageBox.innerText = `Tuyệt vời! Đã gắp số ${caughtBall.num} 🎉`;
-              
-              if (nextTarget > maxBalls) {
-                messageBox.innerText = `Chúc mừng! Bạn đã hoàn thành ${maxBalls} số! 🏆`;
-                setTimeout(() => {
-                  if (confirm(`Chúc mừng bạn đã thắng với ${maxBalls} số! Chơi lại không?`)) {
-                    resetGame();
-                  }
-                }, 1000);
-              }
-              
+        function initLevel() {
+            items = [];
+            const itemCount = 10; // Mỗi ván chỉ có 10 số
+            const startY = 180;
+            const endY = 480;
+            const yStep = (endY - startY) / (itemCount - 1);
+            
+            // Xác định phạm vi số cho ván hiện tại
+            const startNumber = (currentLevel - 1) * 10 + 1;
+            const endNumber = currentLevel * 10;
+            
+            for (let i = 0; i < itemCount; i++) {
+                let x, type;
+                let validPosition = false;
+                let attempts = 0;
+                
+                // Tính Y dựa trên thứ tự
+                const targetY = startY + (i * yStep);
+                const y = targetY + (Math.random() - 0.5) * 25;
+                
+                // Xác định loại vật phẩm
+                const rand = Math.random();
+                if (rand < 0.4) type = 'gold_small';
+                else if (rand < 0.65) type = 'gold_large';
+                else if (rand < 0.8) type = 'rock';
+                else type = 'diamond';
+                
+                // Tạo item tạm để lấy radius
+                const tempItem = new Item(0, 0, type, startNumber + i);
+                const radius = tempItem.radius;
+                
+                // Thử tìm vị trí X không chèn lên nhau
+                while (!validPosition && attempts < 100) {
+                    x = 80 + Math.random() * (canvas.width - 160);
+                    
+                    validPosition = true;
+                    
+                    // Kiểm tra khoảng cách với các vật phẩm đã có
+                    for (let j = 0; j < items.length; j++) {
+                        const dx = x - items[j].x;
+                        const dy = y - items[j].y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        const minDistance = radius + items[j].radius + 15;
+                        
+                        if (distance < minDistance) {
+                            validPosition = false;
+                            break;
+                        }
+                    }
+                    
+                    attempts++;
+                }
+                
+                items.push(new Item(x, y, type, startNumber + i));
+            }
+            
+            // Cập nhật số tiếp theo cần câu
+            nextNumber = startNumber;
+            updateUI();
+        }
+        
+        function drawMiner() {
+            // Vẽ thợ mỏ với kích thước lớn hơn
+            if (images.miner) {
+                ctx.drawImage(images.miner, miner.x - 40, miner.y - 50, 80, 80); // Tăng kích thước
+            }
+            
+            // Tính toán vị trí móc
+            if (!miner.isExtending) {
+                miner.hookX = miner.x + Math.cos(miner.hookAngle) * miner.hookLength;
+                miner.hookY = miner.y + Math.sin(miner.hookAngle) * miner.hookLength;
             } else {
-              // Gắp sai số
-              messageBox.innerText = `Sai rồi! Cần gắp số ${nextTarget}, không phải ${caughtBall.num} ❌`;
+                miner.hookX = miner.x + Math.cos(miner.hookAngle) * miner.currentLength;
+                miner.hookY = miner.y + Math.sin(miner.hookAngle) * miner.currentLength;
             }
             
-            // Xóa bóng đã gắp
-            balls = balls.filter(b => b !== caughtBall);
-            caughtBall = null;
+            // Vẽ dây móc
+            ctx.beginPath();
+            ctx.moveTo(miner.x, miner.y);
+            ctx.lineTo(miner.hookX, miner.hookY);
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 3; // Tăng độ dày
+            ctx.stroke();
             
-            updateScore();
-            setTimeout(() => messageBox.innerText = "", 3000);
-          }
+            // Vẽ móc với kích thước lớn hơn
+            if (images.hook) {
+                ctx.save();
+                ctx.translate(miner.hookX, miner.hookY);
+                ctx.rotate(miner.hookAngle);
+                ctx.drawImage(images.hook, -15, -15, 30, 30); // Tăng kích thước
+                ctx.restore();
+            }
         }
-      }
-    }
-    
-    function updateScore() {
-      if (caughtNumbers.length === 0) {
-        scoreText.innerText = "Chưa có";
-      } else {
-        scoreText.innerText = caughtNumbers.join(", ") + ` (Tiếp theo: ${nextTarget > maxBalls ? "Hoàn thành!" : nextTarget})`;
-      }
-    }
-    
-    function shuffleBalls() {
-      balls.forEach(ball => {
-        if (!ball.caught) {
-          // Thổi bóng lên cao với lực ngẫu nhiên
-          ball.vy = -(Math.random() * 15 + 10);
-          ball.vx = (Math.random() - 0.5) * 10;
-          ball.y = Math.min(ball.y, canvas.height - 100);
+        
+        function checkCollision() {
+            for (let item of items) {
+                if (item.caught) continue;
+                
+                const dx = miner.hookX - item.x;
+                const dy = miner.hookY - item.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance < item.radius + 10) { // Tăng phạm vi va chạm
+                    miner.isCatching = true;
+                    miner.caughtItem = item;
+                    item.caught = true;
+                    miner.retractSpeed = 3 / item.weight;
+                    return true;
+                }
+            }
+            return false;
         }
-      });
-      
-      messageBox.innerText = "Đã xáo trộn các bóng! 🌪️";
-      setTimeout(() => messageBox.innerText = "", 2000);
-    }
-    
-    function resetGame() {
-      nextTarget = 1;
-      caughtNumbers = [];
-      caughtBall = null;
-      isDropping = false;
-      isReturning = false;
-      ropeLength = 60;
-      clawX = canvas.width / 2;
-      
-      initBalls();
-      updateScore();
-      messageBox.innerText = `Game mới bắt đầu! Hãy gắp từ số 1 đến ${maxBalls} theo thứ tự! 🎮`;
-      setTimeout(() => messageBox.innerText = "", 3000);
-    }
-    
-    function changeLevel(level) {
-      maxBalls = level;
-      
-      // Cập nhật nút active
-      levelButtons.forEach(btn => btn.classList.remove('active'));
-      event.target.classList.add('active');
-      
-      // Điều chỉnh kích thước canvas cho nhiều bóng hơn
-      if (maxBalls > 20) {
-        canvas.width = 900;
-        canvas.height = 700;
-      } else if (maxBalls > 10) {
-        canvas.width = 800;
-        canvas.height = 600;
-      } else {
-        canvas.width = 600;
-        canvas.height = 500;
-      }
-      
-      resetGame();
-    }
-    
-    function gameLoop() {
-      // Vẽ nền gradient
-      const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-      gradient.addColorStop(0, "#34495e");
-      gradient.addColorStop(1, "#2c3e50");
-      ctx.fillStyle = gradient;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      
-      // Vẽ đường đất
-      ctx.fillStyle = "#8b4513";
-      ctx.fillRect(0, canvas.height - 20, canvas.width, 20);
-      
-      drawClaw();
-      drawBalls();
-      updateBalls();
-      updateClaw();
-      requestAnimationFrame(gameLoop);
-    }
-    
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "ArrowLeft" && !isDropping && !isReturning && clawX > clawWidth / 2) {
-        clawX -= clawMove;
-      } else if (e.key === "ArrowRight" && !isDropping && !isReturning && clawX < canvas.width - clawWidth / 2) {
-        clawX += clawMove;
-      } else if ((e.key === " " || e.key === "ArrowDown") && !isDropping && !isReturning) {
-        e.preventDefault();
-        isDropping = true;
-      }
-    });
-    
-    // Khởi tạo game
-    initBalls();
-    updateScore();
-    messageBox.innerText = "Chào mừng! Hãy gắp các số từ 1 đến 10 theo đúng thứ tự! 🎮";
-    setTimeout(() => messageBox.innerText = "", 3000);
-    
-    gameLoop();
-  </script>
+        
+        function updateGame() {
+            if (!miner.isExtending) {
+                // Xoay móc qua lại
+                miner.hookAngle += miner.hookSpeed;
+                if (miner.hookAngle >= miner.maxAngle || miner.hookAngle <= miner.minAngle) {
+                    miner.hookSpeed *= -1;
+                }
+            } else {
+                if (!miner.isCatching) {
+                    // Thả móc theo hướng đang lắc
+                    miner.currentLength += miner.extendSpeed;
+                    
+                    // Cập nhật vị trí móc theo hướng góc hiện tại
+                    miner.hookX = miner.x + Math.cos(miner.hookAngle) * miner.currentLength;
+                    miner.hookY = miner.y + Math.sin(miner.hookAngle) * miner.currentLength;
+                    
+                    // Kiểm tra va chạm
+                    if (checkCollision()) {
+                        // Đã móc được vật
+                    } else if (miner.currentLength >= miner.maxLength || miner.hookY >= canvas.height || miner.hookX < 0 || miner.hookX > canvas.width) {
+                        // Chạm đáy hoặc hết chiều dài hoặc ra ngoài màn hình
+                        miner.isCatching = true;
+                    }
+                } else {
+                    // Thu móc về
+                    miner.currentLength -= miner.retractSpeed;
+                    
+                    // Cập nhật vị trí móc khi thu về (giữ nguyên góc)
+                    miner.hookX = miner.x + Math.cos(miner.hookAngle) * miner.currentLength;
+                    miner.hookY = miner.y + Math.sin(miner.hookAngle) * miner.currentLength;
+                    
+                    // Cập nhật vị trí vật đã móc
+                    if (miner.caughtItem) {
+                        miner.caughtItem.x = miner.hookX;
+                        miner.caughtItem.y = miner.hookY;
+                    }
+                    
+                    // Đã thu về hết
+                    if (miner.currentLength <= miner.hookLength) {
+                        if (miner.caughtItem) {
+                            // Kiểm tra xem có phải số tiếp theo không
+                            if (miner.caughtItem.number === nextNumber) {
+                                score += 1;
+                                nextNumber++;
+                                updateUI();
+                                
+                                // Kiểm tra nếu đã câu hết ván hiện tại
+                                if (nextNumber > currentLevel * 10) {
+                                    // Chuyển sang ván tiếp theo
+                                    currentLevel++;
+                                    if (currentLevel > maxLevel) {
+                                        // Đã hoàn thành tất cả ván
+                                        endGame(true);
+                                        return;
+                                    } else {
+                                        // Tiếp tục ván tiếp theo
+                                        initLevel();
+                                    }
+                                }
+                            } else {
+                                // Câu sai số - thua ngay lập tức
+                                endGame(false);
+                                return;
+                            }
+                            
+                            items = items.filter(item => item !== miner.caughtItem);
+                        }
+                        
+                        miner.isExtending = false;
+                        miner.isCatching = false;
+                        miner.caughtItem = null;
+                        miner.currentLength = miner.hookLength;
+                        miner.retractSpeed = 3;
+                    }
+                }
+            }
+        }
+        
+        function draw() {
+            // Vẽ background
+            if (images.background) {
+                ctx.drawImage(images.background, 0, 0, canvas.width, canvas.height);
+            }
+            
+            // Vẽ các vật phẩm
+            items.forEach(item => item.draw());
+            
+            // Vẽ thợ mỏ
+            drawMiner();
+        }
+        
+        function gameLoop() {
+            if (!gameStarted) return;
+            
+            updateGame();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+        
+        function updateUI() {
+            document.getElementById('score').textContent = score;
+            document.getElementById('level').textContent = currentLevel;
+            document.getElementById('timer').textContent = timeElapsed;
+        }
+        
+        function startTimer() {
+            gameTimer = setInterval(() => {
+                timeElapsed++;
+                updateUI();
+            }, 1000);
+        }
+        
+        function stopTimer() {
+            clearInterval(gameTimer);
+        }
+        
+        function startGame() {
+    // ẩn instruction + result-box (phòng trường hợp còn hiện)
+    document.getElementById('instruction').classList.add('hidden');
+    document.getElementById('result-box').classList.add('hidden');
+    document.getElementById('result-message').innerHTML = '';
+
+    // dọn timer cũ nếu có
+    stopTimer();
+
+    gameStarted = true;
+    score = 0;
+    timeElapsed = 0;
+    currentLevel = 1;
+    startTime = performance.now();
+
+    // reset trạng thái móc/thợ mỏ + danh sách items
+    resetMinerState();
+    items = [];
+
+    initLevel();
+    updateUI();
+    startTimer();
+    gameLoop(); // bắt đầu vòng lặp
+}
+
+        
+       function restartGame() {
+    document.getElementById('result-box').classList.add('hidden');
+    document.getElementById('result-message').innerHTML = '';
+    // nếu có flag lưu điểm đang chạy, bạn có thể đặt = false (xem phần save)
+    startGame();
+}
+
+        
+        // Hàm kết thúc game
+        function endGame(isWin) {
+            gameStarted = false;
+            stopTimer();
+            const elapsed = startTime ? (performance.now() - startTime)/1000 : 0;
+            
+            const resultBox = document.getElementById('result-box');
+            const resultTitle = document.getElementById('result-title');
+            const resultMessage = document.getElementById('result-message');
+            
+            resultBox.classList.remove('hidden');
+            
+            if (isWin) {
+                resultTitle.textContent = '🎉 CHÚC MỪNG! 🎉';
+                resultMessage.innerHTML = `Bạn đã hoàn thành tất cả ${maxLevel} ván!<br>Điểm: <span style="color:gold">${score}</span><br>Thời gian: <strong>${elapsed.toFixed(2)}s</strong>`;
+            } else {
+                resultTitle.textContent = '💥 GAME OVER! 💥';
+                resultMessage.innerHTML = `Bạn đã câu sai số!<br>Điểm: <span style="color:gold">${score}</span><br>Thời gian: <strong>${elapsed.toFixed(2)}s</strong>`;
+            }
+
+            // Gửi điểm lên server
+            const username = localStorage.getItem('username') || prompt("Nhập tên người chơi của bạn:");
+            if (username) {
+                localStorage.setItem('username', username);
+                fetch("http://210.245.52.119/api_gamedemso/api/scores/save", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        username: username,
+                        gameId: 11,
+                        score: score,
+                        timeTaken: elapsed
+                    })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    console.log("Kết quả lưu điểm:", data);
+                    if (data.success) {
+                        resultMessage.innerHTML += "<br><span style='color:#10b981'>✅ Điểm đã được lưu!</span>";
+                    } else {
+                        resultMessage.innerHTML += "<br><span style='color:#ef4444'>❌ Lưu điểm thất bại: " + data.message + "</span>";
+                    }
+                })
+                .catch(err => {
+                    console.error("Lỗi lưu điểm:", err);
+                    resultMessage.innerHTML += "<br><span style='color:#ef4444'>⚠️ Không kết nối được server.</span>";
+                });
+            } else {
+                resultMessage.innerHTML += "<br><span style='color:#facc15'>⚠️ Không lưu điểm (chưa nhập tên).</span>";
+            }
+        }
+        
+
+
+
+        // Reset trạng thái thợ mỏ / móc
+function resetMinerState() {
+    miner.hookAngle = Math.PI / 2;
+    miner.hookSpeed = 0.015;
+    miner.hookLength = 60;
+    miner.hookX = miner.x + Math.cos(miner.hookAngle) * miner.hookLength;
+    miner.hookY = miner.y + Math.sin(miner.hookAngle) * miner.hookLength;
+    miner.isExtending = false;
+    miner.isCatching = false;
+    miner.caughtItem = null;
+    miner.maxLength = 500;
+    miner.currentLength = miner.hookLength;
+    miner.extendSpeed = 5;
+    miner.retractSpeed = 3;
+    miner.minAngle = Math.PI * 0.1;
+    miner.maxAngle = Math.PI * 0.9;
+}
+
+
+
+
+
+
+
+
+        // Điều khiển
+        canvas.addEventListener('click', () => {
+            if (gameStarted && !miner.isExtending) {
+                miner.isExtending = true;
+            }
+        });
+        
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' && gameStarted && !miner.isExtending) {
+                e.preventDefault();
+                miner.isExtending = true;
+            }
+        });
+        
+        // Khởi tạo - tải ảnh trước khi bắt đầu game
+        loadImages().then(() => {
+            console.log("Tất cả ảnh đã tải xong");
+            initLevel();
+            draw();
+        }).catch((error) => {
+            console.error("Lỗi tải ảnh:", error);
+            initLevel();
+            draw();
+        });
+    </script>
 </body>
 </html>

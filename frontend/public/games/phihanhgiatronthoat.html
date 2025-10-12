@@ -35,7 +35,7 @@
       left: 15px;
       color: white;
       font-family: 'Arial', sans-serif;
-      font-size: 18px;
+      font-size: 13px;
       font-weight: bold;
       text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
       z-index: 10;
@@ -74,6 +74,37 @@
       z-index: 100;
       display: none;
     }
+
+    #mobile-controls {
+    position: absolute;
+    bottom: 20px;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    gap: 30px;
+    z-index: 50;
+  }
+  #mobile-controls button {
+    background: rgba(0,0,0,0.6);
+    border: 2px solid #4a90e2;
+    color: white;
+    font-size: 28px;
+    padding: 15px 25px;
+    border-radius: 15px;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+    transition: transform 0.1s, background 0.2s;
+  }
+  #mobile-controls button:active {
+    transform: scale(0.9);
+    background: rgba(74, 144, 226, 0.8);
+  }
+
+  @media (min-width: 900px) {
+    #mobile-controls { display: none; }
+  }
+
+    
   </style>
 </head>
 <body>
@@ -81,7 +112,7 @@
     <div id="ui">
       <div class="ui-item">🏆 Điểm: <span id="score">0</span></div>
       <div class="ui-item">🪙 Xu: <span id="coinsCollected">0/10</span></div>
-      <div class="ui-item">🎯 Tiếp theo: <span id="nextCoin">1</span></div>
+      
       <div class="ui-item">🚀 Cấp độ: <span id="level">1</span></div>
     </div>
     <div id="instructions">
@@ -95,6 +126,14 @@
       <p>Chuẩn bị cho cấp độ tiếp theo...</p>
     </div>
   </div>
+
+    <!-- Nút điều khiển ảo -->
+  <div id="mobile-controls">
+    <button id="btn-left">⬅️</button>
+    <button id="btn-right">➡️</button>
+    <button id="btn-fly">🚀</button>
+  </div>
+
 
   <script>
     let player;
@@ -117,12 +156,17 @@
     let isLevelTransition = false;
     let transitionTimer = 0;
     let astronautImg;
+    let platform1Img, platform2Img;
+    let backgroundImg;
+    let doorImg;
 
     function preload() {
-  astronautImg = loadImage("phihanhgia3.png");
-}
-
-
+      astronautImg = loadImage("phihanhgia3.png");
+      platform1Img = loadImage("platform1.png");
+      platform2Img = loadImage("platform2.png");
+      backgroundImg = loadImage("forestbackground.png");
+      doorImg = loadImage("door.png");
+    }
 
     function setup() {
       let canvas = createCanvas(800, 600);
@@ -150,14 +194,14 @@
         vy: 0 
       };
       
-      // Tạo các bậc thang với màu sắc gradient
+      // Tạo các bậc thang với hình ảnh
       platforms = [
-        { x: 0, y: 550, w: 800, h: 50, color: [100, 50, 25] },
-        { x: 100, y: 450, w: 200, h: 20, color: [120, 60, 30] },
-        { x: 450, y: 350, w: 200, h: 20, color: [140, 70, 35] },
-        { x: 150, y: 250, w: 200, h: 20, color: [160, 80, 40] },
-        { x: 500, y: 150, w: 200, h: 20, color: [180, 90, 45] },
-        { x: 300, y: 50, w: 150, h: 20, color: [200, 100, 50] }
+        { x: 0, y: 550, w: 800, h: 50, type: 1 },
+        { x: 100, y: 450, w: 200, h: 20, type: 2 },
+        { x: 450, y: 350, w: 200, h: 20, type: 1 },
+        { x: 150, y: 250, w: 200, h: 20, type: 2 },
+        { x: 500, y: 150, w: 200, h: 20, type: 1 },
+        { x: 300, y: 50, w: 150, h: 20, type: 2 }
       ];
       
       // Tính toán giá trị xu cho cấp độ hiện tại
@@ -211,16 +255,16 @@
       
       gameTime++;
       
-      // Vẽ background gradient - ĐÃ SỬA LỖI Ở ĐÂY
+      // Vẽ background với hình ảnh
       drawBackground();
       
       // Vẽ các ngôi sao
       drawStars();
       
-      // Vẽ bậc thang với hiệu ứng
+      // Vẽ bậc thang với hình ảnh
       drawPlatforms();
       
-      // Vẽ cánh cổng
+      // Vẽ cánh cổng với hình ảnh
       drawPortal();
       
       // Cập nhật và vẽ particles (lửa)
@@ -248,13 +292,8 @@
     }
 
     function drawBackground() {
-      // Sử dụng gradient từ CSS thay vì vẽ từng dòng
-      clear();
-      push();
-      // Vẽ nền gradient giống với CSS
-      drawingContext.fillStyle = 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)';
-      rect(0, 0, width, height);
-      pop();
+      // Vẽ hình nền
+      image(backgroundImg, 0, 0, width, height);
     }
 
     function drawLevelTransition() {
@@ -290,20 +329,11 @@
     }
 
     function drawPlatforms() {
-      noStroke();
       for (let p of platforms) {
-        fill(0, 0, 0, 100);
-        rect(p.x + 3, p.y + 3, p.w, p.h);
-        
-        for (let i = 0; i < p.h; i++) {
-          let inter = map(i, 0, p.h, 0, 1);
-          let c = lerpColor(
-            color(p.color[0], p.color[1], p.color[2]),
-            color(p.color[0] * 0.6, p.color[1] * 0.6, p.color[2] * 0.6),
-            inter
-          );
-          stroke(c);
-          line(p.x, p.y + i, p.x + p.w, p.y + i);
+        if (p.type === 1) {
+          image(platform1Img, p.x-10, p.y-15, p.w+30, p.h+20);
+        } else {
+          image(platform2Img, p.x-10, p.y-15, p.w+30, p.h+20);
         }
       }
     }
@@ -318,9 +348,8 @@
         fill(0, 255, 255, 100);
         ellipse(portal.x, portal.y, pulseSize + 20, pulseSize + 20);
         
-        // Vẽ cổng chính
-        fill(0, 200, 255);
-        ellipse(portal.x, portal.y, portal.size, portal.size);
+        // Vẽ cổng với hình ảnh
+        image(doorImg, portal.x - portal.size/2, portal.y - portal.size/2, portal.size, portal.size);
         
         // Hiệu ứng xoáy
         stroke(255, 255, 255, 150);
@@ -433,12 +462,11 @@
     }
 
     function drawPlayer() {
-  push();
-  imageMode(CENTER);
-  image(astronautImg, player.x, player.y, player.size, player.size);
-  pop();
-}
-
+      push();
+      imageMode(CENTER);
+      image(astronautImg, player.x, player.y, player.size, player.size);
+      pop();
+    }
 
     function createFireParticles() {
       for (let i = 0; i < random(3, 6); i++) {
@@ -469,7 +497,7 @@
     }
 
     function updateParticles() {
-      for (let i = particles.length - 1; i >= 0; i--) {
+    for (let i = particles.length - 1; i >= 0; i--) {
         let p = particles[i];
         p.x += p.vx;
         p.y += p.vy;
@@ -477,24 +505,48 @@
         
         let alpha = map(p.life, 0, p.maxLife, 0, 255);
         noStroke();
-        
+
+        // Hiệu ứng "blink blink" - thay đổi độ sáng (opacity)
+        let blinkEffect = Math.sin(frameCount * 0.1 + p.x * 0.05) * 127 + 128;
+        alpha = Math.min(alpha, blinkEffect);
+
+        // Chọn màu sắc cho các ngôi sao
         if (p.color === 'orange') {
-          fill(255, 165, 0, alpha);
+            fill(255, 165, 0, alpha);
         } else if (p.color === 'red') {
-          fill(255, 0, 0, alpha);
+            fill(255, 0, 0, alpha);
         } else if (p.color === 'yellow') {
-          fill(255, 255, 0, alpha);
+            fill(255, 255, 0, alpha);
         } else if (p.color === 'gold') {
-          fill(255, 215, 0, alpha);
+            fill(255, 215, 0, alpha);
         }
         
-        ellipse(p.x, p.y, 8, 8);
-        
+        // Vẽ ngôi sao 5 cánh (hoặc hình sao nhấp nháy)
+        drawStar(p.x, p.y, 4, 8, 5);
+
+        // Xóa particle khi hết đời
         if (p.life <= 0) {
-          particles.splice(i, 1);
+            particles.splice(i, 1);
         }
-      }
     }
+}
+
+// Hàm vẽ sao 5 cánh
+function drawStar(x, y, radius1, radius2, npoints) {
+    let angle = TWO_PI / npoints;
+    let halfAngle = angle / 2.0;
+    beginShape();
+    for (let a = -PI/2; a < TWO_PI; a += angle) {
+        let sx = x + cos(a) * radius2;
+        let sy = y + sin(a) * radius2;
+        vertex(sx, sy);
+        sx = x + cos(a + halfAngle) * radius1;
+        sy = y + sin(a + halfAngle) * radius1;
+        vertex(sx, sy);
+    }
+    endShape(CLOSE);
+}
+
 
     function drawCoins() {
       textAlign(CENTER, CENTER);
@@ -502,11 +554,13 @@
         if (!c.collected) {
           c.pulse += 0.1;
           
+          /*
           if (c.value === nextCoinToCollect) {
             let pulseSize = 30 + sin(c.pulse * 2) * 5;
             fill(255, 255, 0, 150);
             ellipse(c.x, c.y, pulseSize + 10, pulseSize + 10);
           }
+            */
           
           fill(255, 215, 0);
           stroke(255, 180, 0);
@@ -525,7 +579,7 @@
     function updateUI() {
       document.getElementById('score').textContent = score;
       document.getElementById('coinsCollected').textContent = `${nextCoinToCollect - (currentLevel - 1) * coinsPerLevel - 1}/${coinsPerLevel}`;
-      document.getElementById('nextCoin').textContent = nextCoinToCollect <= currentLevel * coinsPerLevel ? nextCoinToCollect : 'Tìm cổng!';
+      //document.getElementById('nextCoin').textContent = nextCoinToCollect <= currentLevel * coinsPerLevel ? nextCoinToCollect : 'Tìm cổng!';
       document.getElementById('level').textContent = currentLevel;
       document.getElementById('current-level').textContent = currentLevel - 1;
     }
@@ -611,6 +665,21 @@
         e.preventDefault();
       }
     }, false);
+
+
+    // ===== Nút điều khiển ảo cho điện thoại =====
+document.getElementById("btn-left").addEventListener("touchstart", () => moveState.left = true);
+document.getElementById("btn-left").addEventListener("touchend", () => moveState.left = false);
+
+document.getElementById("btn-right").addEventListener("touchstart", () => moveState.right = true);
+document.getElementById("btn-right").addEventListener("touchend", () => moveState.right = false);
+
+document.getElementById("btn-fly").addEventListener("touchstart", () => isFlying = true);
+document.getElementById("btn-fly").addEventListener("touchend", () => isFlying = false);
+
+
+
+
   </script>
 </body>
 </html>
