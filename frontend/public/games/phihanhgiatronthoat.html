@@ -74,6 +74,21 @@
       z-index: 100;
       display: none;
     }
+    #result-message {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0, 0, 0, 0.85);
+      padding: 20px;
+      border-radius: 10px;
+      text-align: center;
+      z-index: 200;
+      display: none;
+      color: white;
+      border: 2px solid #4a90e2;
+      max-width: 80%;
+    }
 
     #mobile-controls {
     position: absolute;
@@ -103,8 +118,6 @@
   @media (min-width: 900px) {
     #mobile-controls { display: none; }
   }
-
-    
   </style>
 </head>
 <body>
@@ -112,7 +125,7 @@
     <div id="ui">
       <div class="ui-item">🏆 Điểm: <span id="score">0</span></div>
       <div class="ui-item">🪙 Xu: <span id="coinsCollected">0/10</span></div>
-      
+      <div class="ui-item">⏱️ Thời gian: <span id="time">0</span>s</div>
       <div class="ui-item">🚀 Cấp độ: <span id="level">1</span></div>
     </div>
     <div id="instructions">
@@ -125,15 +138,15 @@
       <p>Bạn đã hoàn thành cấp độ <span id="current-level">1</span></p>
       <p>Chuẩn bị cho cấp độ tiếp theo...</p>
     </div>
+    <div id="result-message"></div>
   </div>
 
-    <!-- Nút điều khiển ảo -->
+  <!-- Nút điều khiển ảo -->
   <div id="mobile-controls">
     <button id="btn-left">⬅️</button>
     <button id="btn-right">➡️</button>
     <button id="btn-fly">🚀</button>
   </div>
-
 
   <script>
     let player;
@@ -159,12 +172,18 @@
     let platform1Img, platform2Img;
     let backgroundImg;
     let doorImg;
+    
+    // Biến thời gian
+    let startTime;
+    let elapsedTime = 0;
+    let timerInterval;
+    let hasSentScore = false;
 
     function preload() {
       astronautImg = loadImage("phihanhgia3.png");
       platform1Img = loadImage("platform1.png");
       platform2Img = loadImage("platform2.png");
-      backgroundImg = loadImage("forestbackground.png");
+      backgroundImg = loadImage("flowerbackground.png");
       doorImg = loadImage("door.png");
     }
 
@@ -182,6 +201,22 @@
           size: random(1, 3),
           brightness: random(100, 255)
         });
+      }
+    }
+
+    function startTimer() {
+      startTime = Date.now();
+      timerInterval = setInterval(() => {
+        if (!gameLost && !gameWon && !isLevelTransition) {
+          elapsedTime = Math.floor((Date.now() - startTime) / 1000);
+          document.getElementById('time').textContent = elapsedTime;
+        }
+      }, 1000);
+    }
+
+    function stopTimer() {
+      if (timerInterval) {
+        clearInterval(timerInterval);
       }
     }
 
@@ -245,6 +280,7 @@
       gameWon = false;
       isLevelTransition = false;
       transitionTimer = 0;
+      hasSentScore = false;
     }
 
     function draw() {
@@ -445,6 +481,8 @@
             }
           } else if (c.value > nextCoinToCollect) {
             gameLost = true;
+            stopTimer();
+            sendScoreToServer();
           }
         }
       }
@@ -457,6 +495,8 @@
           transitionTimer = 0;
         } else {
           gameWon = true;
+          stopTimer();
+          sendScoreToServer();
         }
       }
     }
@@ -579,7 +619,6 @@ function drawStar(x, y, radius1, radius2, npoints) {
     function updateUI() {
       document.getElementById('score').textContent = score;
       document.getElementById('coinsCollected').textContent = `${nextCoinToCollect - (currentLevel - 1) * coinsPerLevel - 1}/${coinsPerLevel}`;
-      //document.getElementById('nextCoin').textContent = nextCoinToCollect <= currentLevel * coinsPerLevel ? nextCoinToCollect : 'Tìm cổng!';
       document.getElementById('level').textContent = currentLevel;
       document.getElementById('current-level').textContent = currentLevel - 1;
     }
@@ -634,6 +673,77 @@ function drawStar(x, y, radius1, radius2, npoints) {
       text("Nhấn R để chơi lại", width/2, height/2 + 40);
     }
 
+    function sendScoreToServer() {
+      if (hasSentScore) return;
+      hasSentScore = true;
+      
+      const username = localStorage.getItem('username') || prompt("Nhập tên người chơi của bạn:");
+      if (username) {
+        localStorage.setItem('username', username); // lưu để lần sau khỏi hỏi lại
+        fetch("http://210.245.52.119/api_gamedemso/api/scores/save", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            username: username,
+            gameId: 3,          // id game trong bảng games, tùy bạn đặt
+            score: score,
+            timeTaken: elapsedTime
+          })
+        })
+        .then(res => res.json())
+        .then(data => {
+          console.log("Kết quả lưu điểm:", data);
+          
+          // Hiển thị thông báo kết quả
+          const resultBox = document.getElementById('result-message');
+          resultBox.style.display = 'block';
+          
+          if (data.success) {
+            resultBox.innerHTML = `
+              <h2>${gameWon ? '🎉 CHIẾN THẮNG!' : '💥 GAME OVER'}</h2>
+              <p>Điểm số: ${score}</p>
+              <p>Thời gian: ${elapsedTime} giây</p>
+              <p><span style='color:#10b981'>✅ Điểm đã được lưu!</span></p>
+              <p>Nhấn R để chơi lại</p>
+            `;
+          } else {
+            resultBox.innerHTML = `
+              <h2>${gameWon ? '🎉 CHIẾN THẮNG!' : '💥 GAME OVER'}</h2>
+              <p>Điểm số: ${score}</p>
+              <p>Thời gian: ${elapsedTime} giây</p>
+              <p><span style='color:#ef4444'>❌ Lưu điểm thất bại: ${data.message}</span></p>
+              <p>Nhấn R để chơi lại</p>
+            `;
+          }
+        })
+        .catch(err => {
+          console.error("Lỗi lưu điểm:", err);
+          
+          // Hiển thị thông báo lỗi
+          const resultBox = document.getElementById('result-message');
+          resultBox.style.display = 'block';
+          resultBox.innerHTML = `
+            <h2>${gameWon ? '🎉 CHIẾN THẮNG!' : '💥 GAME OVER'}</h2>
+            <p>Điểm số: ${score}</p>
+            <p>Thời gian: ${elapsedTime} giây</p>
+            <p><span style='color:#ef4444'>⚠️ Không kết nối được server.</span></p>
+            <p>Nhấn R để chơi lại</p>
+          `;
+        });
+      } else {
+        // Không có tên người dùng
+        const resultBox = document.getElementById('result-message');
+        resultBox.style.display = 'block';
+        resultBox.innerHTML = `
+          <h2>${gameWon ? '🎉 CHIẾN THẮNG!' : '💥 GAME OVER'}</h2>
+          <p>Điểm số: ${score}</p>
+          <p>Thời gian: ${elapsedTime} giây</p>
+          <p><span style='color:#facc15'>⚠️ Không lưu điểm (chưa nhập tên).</span></p>
+          <p>Nhấn R để chơi lại</p>
+        `;
+      }
+    }
+
     function keyPressed() {
       if ((gameLost || gameWon) && key === 'r') {
         resetGame();
@@ -653,11 +763,15 @@ function drawStar(x, y, radius1, radius2, npoints) {
     }
 
     function resetGame() {
+      stopTimer();
       currentLevel = 1;
       score = 0;
+      elapsedTime = 0;
       particles = [];
       gameTime = 0;
+      document.getElementById('result-message').style.display = 'none';
       initializeLevel();
+      startTimer();
     }
 
     window.addEventListener('keydown', function(e) {
@@ -666,20 +780,15 @@ function drawStar(x, y, radius1, radius2, npoints) {
       }
     }, false);
 
-
     // ===== Nút điều khiển ảo cho điện thoại =====
-document.getElementById("btn-left").addEventListener("touchstart", () => moveState.left = true);
-document.getElementById("btn-left").addEventListener("touchend", () => moveState.left = false);
+    document.getElementById("btn-left").addEventListener("touchstart", () => moveState.left = true);
+    document.getElementById("btn-left").addEventListener("touchend", () => moveState.left = false);
 
-document.getElementById("btn-right").addEventListener("touchstart", () => moveState.right = true);
-document.getElementById("btn-right").addEventListener("touchend", () => moveState.right = false);
+    document.getElementById("btn-right").addEventListener("touchstart", () => moveState.right = true);
+    document.getElementById("btn-right").addEventListener("touchend", () => moveState.right = false);
 
-document.getElementById("btn-fly").addEventListener("touchstart", () => isFlying = true);
-document.getElementById("btn-fly").addEventListener("touchend", () => isFlying = false);
-
-
-
-
+    document.getElementById("btn-fly").addEventListener("touchstart", () => isFlying = true);
+    document.getElementById("btn-fly").addEventListener("touchend", () => isFlying = false);
   </script>
 </body>
 </html>

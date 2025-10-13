@@ -4,130 +4,284 @@
   <meta charset="UTF-8">
   <title>Game Bảo Vệ Thành - Số Tiếp Theo</title>
   <style>
-    body { margin: 0; background: #222; color: white; text-align: center; font-family: sans-serif; }
-    canvas { background: #333; display: block; margin: 10px auto; border: 2px solid #666; }
-    #questionBox {
-      background: #444;
-      padding: 15px;
-      margin: 10px auto;
-      width: 500px;
-      border-radius: 8px;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    body { 
+      margin: 0; 
+      background: #111; 
+      color: white; 
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
     }
+    
+    #gameContainer {
+      position: relative;
+      width: 1150px;
+      height: 600px;
+      background: #222;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+    
+    canvas { 
+      background: #333; 
+      display: block; 
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 750px;
+      height: 100%;
+      border-left: 2px solid #444;
+    }
+    
+    #leftPanel {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 400px;
+      height: 100%;
+      padding: 15px;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      background: linear-gradient(to bottom, #2a2a2a, #1a1a1a);
+    }
+    
+    #gameTitle {
+      text-align: center;
+      margin-bottom: 15px;
+      font-size: 22px;
+      color: #ffcc00;
+      text-shadow: 0 0 10px rgba(255, 204, 0, 0.5);
+    }
+    
+    #gameStats {
+      background: rgba(0, 0, 0, 0.4);
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      border: 1px solid #444;
+    }
+    
+    .statItem {
+      display: flex;
+      justify-content: space-between;
+      font-size: 16px;
+    }
+    
+    .statValue {
+      font-weight: bold;
+      color: #ffcc00;
+    }
+    
+    #hpValue {
+      color: #ff4444;
+    }
+    
+    #timeValue {
+      color: #44aaff;
+    }
+    
+    #questionBox {
+      background: rgba(0, 0, 0, 0.4);
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid #444;
+    }
+    
+    #question {
+      font-size: 20px;
+      margin-bottom: 15px;
+      text-align: center;
+      color: #ffcc00;
+      min-height: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    #answers {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    
     .answerBtn {
-      background: #666;
+      background: #444;
       color: white;
       border: none;
-      padding: 12px 25px;
-      margin: 5px;
+      padding: 12px;
       border-radius: 5px;
       cursor: pointer;
       font-size: 16px;
-      transition: all 0.3s;
+      transition: all 0.2s;
     }
+    
     .answerBtn:hover {
-      background: #888;
+      background: #555;
       transform: translateY(-2px);
     }
+    
     .answerBtn:disabled {
       background: #333;
       cursor: not-allowed;
       opacity: 0.5;
     }
-    #gameInfo {
-      margin: 10px 0;
-      font-size: 18px;
+    
+    #feedback {
+      margin-top: auto;
+      padding: 8px;
+      text-align: center;
+      font-weight: bold;
+      font-size: 16px;
+      min-height: 25px;
     }
+    
     #skillButtons {
-      margin: 15px auto;
       display: flex;
-      justify-content: center;
-      gap: 10px;
+      flex-direction: column;
+      gap: 8px;
     }
+    
     .skillBtn {
       background: linear-gradient(45deg, #ff9800, #ff5722);
       color: white;
       border: none;
-      padding: 10px 20px;
+      padding: 10px;
       border-radius: 5px;
       cursor: pointer;
       font-size: 14px;
       font-weight: bold;
       transition: all 0.3s;
       box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     }
+    
     .skillBtn:hover:not(:disabled) {
       transform: translateY(-2px);
       box-shadow: 0 6px 12px rgba(0,0,0,0.4);
     }
+    
     .skillBtn:disabled {
       background: #555;
       cursor: not-allowed;
       opacity: 0.5;
     }
+    
     .skillProgress {
-      margin-top: 5px;
-      font-size: 12px;
+      margin-top: 3px;
+      font-size: 11px;
+      font-weight: normal;
     }
+    
     #result-box {
       position: absolute;
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      background: rgba(0,0,0,0.9);
+      background: rgba(0,0,0,0.95);
       color: white;
-      padding: 30px;
-      border-radius: 15px;
+      padding: 25px;
+      border-radius: 12px;
       text-align: center;
       z-index: 1000;
-      box-shadow: 0 0 20px rgba(255,255,255,0.2);
+      box-shadow: 0 0 25px rgba(255,255,255,0.2);
       min-width: 300px;
+      border: 2px solid #ffcc00;
     }
+    
     .hidden {
       display: none;
     }
+    
     #restartBtn {
       background: linear-gradient(45deg, #4CAF50, #2E7D32);
       color: white;
       border: none;
-      padding: 12px 25px;
-      margin-top: 15px;
+      padding: 10px 20px;
+      margin-top: 12px;
       border-radius: 5px;
       cursor: pointer;
-      font-size: 16px;
+      font-size: 14px;
       font-weight: bold;
       transition: all 0.3s;
     }
+    
     #restartBtn:hover {
       transform: translateY(-2px);
       box-shadow: 0 6px 12px rgba(0,0,0,0.4);
     }
+    
+    #streakIndicator {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      background: rgba(0,0,0,0.7);
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 14px;
+      border: 1px solid #444;
+    }
   </style>
 </head>
 <body>
-  <h2>🏰 Game Bảo Vệ Thành - Số Tiếp Theo 🏰</h2>
-  <div id="gameInfo">
-    <span id="hpDisplay">❤️ HP Thành: 100</span> | 
-    <span id="scoreDisplay">⭐ Điểm: 0</span> |
-    <span id="timeDisplay">⏱️ Thời gian: 0s</span>
-  </div>
-  
-  <div id="skillButtons">
-    <button id="rainSkill" class="skillBtn" disabled>Mưa Đạn (6 câu đúng)</button>
-    <button id="pierceSkill" class="skillBtn" disabled>Đạn Thần (10 câu đúng)</button>
-  </div>
-  
-  <canvas id="gameCanvas" width="1000" height="500"></canvas>
+  <div id="gameContainer">
+    <div id="leftPanel">
+      <div id="gameTitle">🏰 Game Bảo Vệ Thành - Số Tiếp Theo 🏰</div>
+      
+      <div id="gameStats">
+        <div class="statItem">
+          <span>❤️ HP Thành:</span>
+          <span id="hpValue" class="statValue">100</span>
+        </div>
+        <div class="statItem">
+          <span>⭐ Điểm:</span>
+          <span id="scoreValue" class="statValue">0</span>
+        </div>
+        <div class="statItem">
+          <span>⏱️ Thời gian:</span>
+          <span id="timeValue" class="statValue">0s</span>
+        </div>
+      </div>
+      
+      <div id="questionBox">
+        <div id="question">Câu hỏi sẽ hiện ở đây</div>
+        <div id="answers"></div>
+        <div id="feedback"></div>
+      </div>
+      
+      <div id="skillButtons">
+        <button id="rainSkill" class="skillBtn" disabled>
+          Mưa Đạn
+          <span class="skillProgress">(0/6)</span>
+        </button>
+        <button id="pierceSkill" class="skillBtn" disabled>
+          Đạn Thần
+          <span class="skillProgress">(0/10)</span>
+        </button>
+      </div>
+    </div>
+    
+    <canvas id="gameCanvas" width="750" height="650"></canvas>
+    
+    <div id="streakIndicator">Combo: 0</div>
 
-  <div id="questionBox">
-    <p id="question">Câu hỏi sẽ hiện ở đây</p>
-    <div id="answers"></div>
-    <div id="feedback" style="margin-top: 10px; font-weight: bold;"></div>
-  </div>
-
-  <div id="result-box" class="hidden">
-    <!-- Kết quả game sẽ hiển thị ở đây -->
-    <button id="restartBtn">Chơi Lại</button>
+    <div id="result-box" class="hidden">
+      <!-- Kết quả game sẽ hiển thị ở đây -->
+      <button id="restartBtn">Chơi Lại</button>
+    </div>
   </div>
 
 <script>
@@ -155,7 +309,7 @@ let timerInterval = null;
 let enemyHpBonus = 0;
 let enemyHpInterval;
 
-// Load images
+// Load images - sử dụng hình ảnh từ thư mục của bạn
 const images = {};
 const imageFiles = [
   'backgroundthanhtri.png',
@@ -183,6 +337,17 @@ imageFiles.forEach(filename => {
   };
   img.onerror = () => {
     console.log(`Không thể tải hình ảnh: ${filename}`);
+    // Tạo hình ảnh placeholder
+    const canvas = document.createElement('canvas');
+    canvas.width = 100;
+    canvas.height = 100;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#666';
+    ctx.fillRect(0, 0, 100, 100);
+    ctx.fillStyle = '#999';
+    ctx.font = '12px Arial';
+    ctx.fillText('Image', 30, 50);
+    images[filename] = canvas;
     imagesLoaded++;
   };
   img.src = filename;
@@ -190,7 +355,7 @@ imageFiles.forEach(filename => {
 });
 
 // Nhân vật trên thành
-const hero = { x: 120, y: 220 };
+const hero = { x: 100, y: 320 };
 
 // Enemy class
 class Enemy {
@@ -198,15 +363,15 @@ class Enemy {
     this.x = canvas.width;
     
     // Quái vật xuất hiện ở các độ cao khác nhau
-    const laneHeights = [280, 330, 380];
+    const laneHeights = [320, 370, 390, 300];
     this.lane = Math.floor(Math.random() * laneHeights.length);
     this.y = laneHeights[this.lane];
     
     this.hp = 80 + enemyHpBonus;
     this.maxHP = 80 + enemyHpBonus;
-    this.speed = 0.4;
-    this.width = 80;
-    this.height = 100;
+    this.speed = 0.9;
+    this.width = 70;
+    this.height = 90;
     
     // Chọn ngẫu nhiên một trong 8 con quái vật
     this.monsterType = Math.floor(Math.random() * 8) + 1;
@@ -215,12 +380,12 @@ class Enemy {
     // Biến để tạo đường đi ziczac
     this.zigzagOffset = 0;
     this.zigzagSpeed = Math.random() * 0.05 + 0.02;
-    this.zigzagAmplitude = 30;
+    this.zigzagAmplitude = 25;
     
     // Biến để tạo đường đi lượn sóng
     this.waveOffset = Math.random() * Math.PI * 2;
     this.waveSpeed = Math.random() * 0.03 + 0.01;
-    this.waveAmplitude = 40;
+    this.waveAmplitude = 35;
     
     // Chọn kiểu di chuyển ngẫu nhiên
     this.movementType = Math.floor(Math.random() * 3); // 0: thẳng, 1: ziczac, 2: lượn sóng
@@ -234,15 +399,15 @@ class Enemy {
     if (this.movementType === 1) {
       // Di chuyển ziczac
       this.zigzagOffset += this.zigzagSpeed;
-      this.y = 330 + Math.sin(this.zigzagOffset) * this.zigzagAmplitude;
+      this.y = 370 + Math.sin(this.zigzagOffset) * this.zigzagAmplitude;
     } else if (this.movementType === 2) {
       // Di chuyển lượn sóng
       this.waveOffset += this.waveSpeed;
-      this.y = 330 + Math.sin(this.waveOffset) * this.waveAmplitude;
+      this.y = 370 + Math.sin(this.waveOffset) * this.waveAmplitude;
     }
     // Nếu movementType = 0, quái vật di chuyển thẳng (không thay đổi y)
     
-    if (this.x < 160) { // Va chạm với thành
+    if (this.x < 140) { // Va chạm với thành
       castleHP -= 15;
       this.hp = 0;
     }
@@ -256,15 +421,23 @@ class Enemy {
       // Fallback nếu không load được hình
       ctx.fillStyle = `hsl(${this.monsterType * 45}, 70%, 50%)`;
       ctx.fillRect(this.x, this.y - this.height, this.width, this.height);
+      
+      // Vẽ mắt
+      ctx.fillStyle = "white";
+      ctx.fillRect(this.x + 12, this.y - this.height + 18, 8, 8);
+      ctx.fillRect(this.x + 40, this.y - this.height + 18, 8, 8);
+      ctx.fillStyle = "black";
+      ctx.fillRect(this.x + 14, this.y - this.height + 20, 4, 4);
+      ctx.fillRect(this.x + 42, this.y - this.height + 20, 4, 4);
     }
     
     // Thanh máu
     const hpBarWidth = this.width;
-    const hpBarHeight = 4;
+    const hpBarHeight = 5;
     ctx.fillStyle = "rgba(0,0,0,0.5)";
     ctx.fillRect(this.x, this.y - this.height - 8, hpBarWidth, hpBarHeight);
     
-    ctx.fillStyle = this.hp > this.maxHP * 0.3 ? "green" : "red";
+    ctx.fillStyle = this.hp > this.maxHP * 0.3 ? "#4CAF50" : "#f44336";
     const hpWidth = (this.hp / this.maxHP) * hpBarWidth;
     ctx.fillRect(this.x, this.y - this.height - 8, hpWidth, hpBarHeight);
   }
@@ -273,13 +446,13 @@ class Enemy {
 // Bullet class
 class Bullet {
   constructor(target, specialType = null) {
-    this.x = hero.x + 30;
+    this.x = hero.x + 25;
     this.y = hero.y + 10;
     this.target = target;
     this.speed = 6;
     this.hit = false;
-    this.width = 40;
-    this.height = 17;
+    this.width = 35;
+    this.height = 15;
     this.createdTime = Date.now();
     this.lifetime = 3000; // 3 giây
     this.specialType = specialType; // 'rain' hoặc 'pierce'
@@ -306,7 +479,7 @@ class Bullet {
     let dy = this.target.y - 20 - this.y;
     let dist = Math.hypot(dx, dy);
     
-    if (dist < 25) {
+    if (dist < 20) {
       this.target.hp -= 25;
       this.hit = true;
     } else {
@@ -321,9 +494,12 @@ class Bullet {
       ctx.drawImage(images['arrow.png'], this.x - this.width/2, this.y - this.height/2, this.width, this.height);
     } else {
       // Fallback
-      ctx.fillStyle = "yellow";
+      ctx.fillStyle = "#ffcc00";
       ctx.beginPath();
-      ctx.arc(this.x, this.y, 6, 0, Math.PI * 2);
+      ctx.moveTo(this.x, this.y);
+      ctx.lineTo(this.x + 18, this.y - 4);
+      ctx.lineTo(this.x + 18, this.y + 4);
+      ctx.closePath();
       ctx.fill();
     }
   }
@@ -339,7 +515,7 @@ function startTimer() {
 function updateTimer() {
   if (startTime) {
     currentTime = (performance.now() - startTime) / 1000;
-    document.getElementById("timeDisplay").innerText = `⏱️ Thời gian: ${currentTime.toFixed(1)}s`;
+    document.getElementById("timeValue").innerText = `${currentTime.toFixed(1)}s`;
   }
 }
 
@@ -426,9 +602,6 @@ function restartGame() {
   // Ẩn hộp kết quả
   document.getElementById("result-box").classList.add("hidden");
   
-  // Hiện lại hộp câu hỏi
-  document.getElementById("questionBox").style.display = "block";
-  
   // Cập nhật UI
   updateUI();
   
@@ -500,6 +673,9 @@ function checkAnswer(ans) {
     // Kích hoạt nút kỹ năng khi đủ điều kiện
     updateSkillButtons();
     
+    // Cập nhật streak indicator
+    document.getElementById("streakIndicator").innerText = `Combo: ${correctStreak}`;
+    
     // Bắn đạn vào quái gần nhất
     if (enemies.length > 0) {
       let nearestEnemy = enemies.reduce((nearest, enemy) => 
@@ -523,6 +699,7 @@ function checkAnswer(ans) {
     correctStreak = 0;
     doubleShotActive = false;
     updateSkillButtons();
+    document.getElementById("streakIndicator").innerText = `Combo: 0`;
     
     document.getElementById("feedback").style.color = "#f44336";
     document.getElementById("feedback").innerText = "❌ Sai rồi! Đợi 1 giây...";
@@ -532,7 +709,7 @@ function checkAnswer(ans) {
     setTimeout(() => {
       questionLocked = false;
       newQuestion();
-    }, 200);
+    }, 1000);
   }
   
   updateUI();
@@ -540,8 +717,8 @@ function checkAnswer(ans) {
 
 // Cập nhật UI
 function updateUI() {
-  document.getElementById("hpDisplay").innerText = `❤️ HP Thành: ${castleHP}`;
-  document.getElementById("scoreDisplay").innerText = `⭐ Điểm: ${score}`;
+  document.getElementById("hpValue").innerText = castleHP;
+  document.getElementById("scoreValue").innerText = score;
 }
 
 // Cập nhật trạng thái nút kỹ năng
@@ -552,19 +729,19 @@ function updateSkillButtons() {
   // Cập nhật nút Mưa Đạn
   if (correctStreak >= 6) {
     rainBtn.disabled = false;
-    rainBtn.innerHTML = "Mưa Đạn (Sẵn sàng!)";
+    rainBtn.querySelector(".skillProgress").innerHTML = "(Sẵn sàng!)";
   } else {
     rainBtn.disabled = true;
-    rainBtn.innerHTML = `Mưa Đạn (${correctStreak}/6)`;
+    rainBtn.querySelector(".skillProgress").innerHTML = `(${correctStreak}/6)`;
   }
   
   // Cập nhật nút Đạn Thần
   if (correctStreak >= 10) {
     pierceBtn.disabled = false;
-    pierceBtn.innerHTML = "Đạn Thần (Sẵn sàng!)";
+    pierceBtn.querySelector(".skillProgress").innerHTML = "(Sẵn sàng!)";
   } else {
     pierceBtn.disabled = true;
-    pierceBtn.innerHTML = `Đạn Thần (${correctStreak}/10)`;
+    pierceBtn.querySelector(".skillProgress").innerHTML = `(${correctStreak}/10)`;
   }
 }
 
@@ -588,6 +765,7 @@ function activateRainSkill() {
   correctStreak = 0;
   doubleShotActive = false;
   updateSkillButtons();
+  document.getElementById("streakIndicator").innerText = `Combo: 0`;
 }
 
 // Kỹ năng Đạn Thần - Hero bắn ra 12 mũi tên nhắm vào quái gần nhất
@@ -610,6 +788,7 @@ function activatePierceSkill() {
   correctStreak = 0;
   doubleShotActive = false;
   updateSkillButtons();
+  document.getElementById("streakIndicator").innerText = `Combo: 0`;
 }
 
 // Spawn quái
@@ -630,33 +809,60 @@ function gameLoop() {
   } else {
     // Fallback background
     const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    gradient.addColorStop(0, '#87CEEB');
-    gradient.addColorStop(0.7, '#98FB98');
-    gradient.addColorStop(1, '#8FBC8F');
+    gradient.addColorStop(0, '#1a3c5a');
+    gradient.addColorStop(0.7, '#3a7ca5');
+    gradient.addColorStop(1, '#5fa8d3');
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Vẽ đám mây
+    ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
+    ctx.beginPath();
+    ctx.arc(550, 90, 35, 0, Math.PI * 2);
+    ctx.arc(590, 80, 25, 0, Math.PI * 2);
+    ctx.arc(530, 80, 25, 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.beginPath();
+    ctx.arc(250, 130, 30, 0, Math.PI * 2);
+    ctx.arc(285, 125, 20, 0, Math.PI * 2);
+    ctx.arc(230, 125, 20, 0, Math.PI * 2);
+    ctx.fill();
   }
 
   // Vẽ thành
   if (images['castle.png'] && images['castle.png'].complete) {
-    ctx.drawImage(images['castle.png'], 0, 155, 200, 200);
+    ctx.drawImage(images['castle.png'], -30, 200, 260, 260);
   } else {
     // Fallback castle
     ctx.fillStyle = "#8B4513";
-    ctx.fillRect(50, 200, 100, 80);
+    ctx.fillRect(40, 230, 90, 180);
     ctx.fillStyle = "#654321";
-    ctx.fillRect(60, 180, 20, 40);
-    ctx.fillRect(100, 180, 20, 40);
-    ctx.fillRect(130, 180, 20, 40);
+    ctx.fillRect(50, 210, 15, 35);
+    ctx.fillRect(85, 210, 15, 35);
+    ctx.fillRect(115, 210, 15, 35);
+    
+    // Cửa thành
+    ctx.fillStyle = "#5D4037";
+    ctx.fillRect(70, 320, 30, 90);
   }
 
   // Vẽ nhân vật
   if (images['hero.png'] && images['hero.png'].complete) {
-    ctx.drawImage(images['hero.png'], hero.x, hero.y, 40, 50);
+    ctx.drawImage(images['hero.png'], hero.x, hero.y, 70, 90);
   } else {
     // Fallback hero
     ctx.fillStyle = "blue";
-    ctx.fillRect(hero.x, hero.y, 30, 40);
+    ctx.fillRect(hero.x, hero.y, 35, 55);
+    
+    // Vẽ mặt
+    ctx.fillStyle = "beige";
+    ctx.fillRect(hero.x + 8, hero.y + 8, 18, 18);
+    
+    // Vẽ mắt
+    ctx.fillStyle = "black";
+    ctx.fillRect(hero.x + 12, hero.y + 13, 2, 2);
+    ctx.fillRect(hero.x + 20, hero.y + 13, 2, 2);
   }
 
   // Enemy update & draw
@@ -680,15 +886,12 @@ function gameLoop() {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
     ctx.fillStyle = "white";
-    ctx.font = "bold 40px Arial";
+    ctx.font = "bold 36px Arial";
     ctx.textAlign = "center";
-    ctx.fillText("🏰 GAME OVER! 🏰", canvas.width/2, canvas.height/2 - 20);
+    ctx.fillText("🏰 GAME OVER! 🏰", canvas.width/2, canvas.height/2 - 15);
     
-    ctx.font = "20px Arial";
-    ctx.fillText(`Điểm cuối cùng: ${score}`, canvas.width/2, canvas.height/2 + 20);
-    
-    ctx.font = "16px Arial";
-    ctx.fillText("Đang lưu điểm...", canvas.width/2, canvas.height/2 + 50);
+    ctx.font = "18px Arial";
+    ctx.fillText(`Điểm cuối cùng: ${score}`, canvas.width/2, canvas.height/2 + 15);
     
     // Gọi hàm kết thúc game
     setTimeout(() => endGame(false), 1000);
